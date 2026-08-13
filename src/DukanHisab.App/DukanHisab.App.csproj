@@ -7,11 +7,33 @@
     <Nullable>enable</Nullable>
     <AssemblyName>DukanHisabNext</AssemblyName>
     <RootNamespace>DukanHisab.App</RootNamespace>
-    <ApplicationIcon Condition="Exists('DukanHisab.ico')">DukanHisab.ico</ApplicationIcon>
+    <ApplicationIcon>DukanHisab.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <UsingTask TaskName="DecodeClassicDukanHisabIcon"
+             TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <InputFile ParameterType="System.String" Required="true" />
+      <OutputFile ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        var encoded = System.IO.File.ReadAllText(InputFile).Trim();
+        var bytes = System.Convert.FromBase64String(encoded);
+        System.IO.File.WriteAllBytes(OutputFile, bytes);
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="RestoreClassicDukanHisabIcon" BeforeTargets="CoreCompile">
+    <DecodeClassicDukanHisabIcon
+      InputFile="$(MSBuildProjectDirectory)\..\..\assets\DukanHisab.ico.b64"
+      OutputFile="$(MSBuildProjectDirectory)\DukanHisab.ico" />
+  </Target>
+
   <ItemGroup>
     <ProjectReference Include="..\DukanHisab.Core\DukanHisab.Core.csproj" />
     <ProjectReference Include="..\DukanHisab.Storage\DukanHisab.Storage.csproj" />
-    <Resource Include="DukanHisab.ico" Condition="Exists('DukanHisab.ico')" />
   </ItemGroup>
 </Project>
