@@ -103,8 +103,19 @@ public partial class MainWindow
             var changed = false;
             foreach (var item in tanzeemItems)
             {
-                if (item.Direction == "اِن") { item.Direction = "دکان سے تنظم کے پاس گئے"; changed = true; }
-                else if (item.Direction == "آؤٹ") { item.Direction = "تنظم سے دکان میں آئے"; changed = true; }
+                var tx = _day.Transactions.FirstOrDefault(x => x.Id == item.Id);
+                if (tx is null) continue;
+
+                var correct = tx.TanzeemType switch
+                {
+                    "in" => "دکان سے تنظم کے پاس گئے",
+                    "out" => "تنظم سے دکان میں آئے",
+                    _ => item.Direction
+                };
+
+                if (item.Direction == correct) continue;
+                item.Direction = correct;
+                changed = true;
             }
             if (changed) TanzeemGrid.Items.Refresh();
         }
