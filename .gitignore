@@ -1,0 +1,35 @@
+# Build outputs
+bin/
+obj/
+dist/
+build/
+release/
+*.exe
+*.msi
+*.zip
+*.log
+
+# Local/private accounting data
+*.bak
+*.tmp
+local-data/
+data/
+exports/
+Dukan-Hisab-20*.txt
+
+# Secrets / local config
+.env
+.env.*
+secrets.json
+appsettings.Local.json
+
+# User-specific files
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Fonts are intentionally not committed
+*.ttf
+*.otf
