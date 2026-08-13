@@ -12,9 +12,6 @@ public partial class MainWindow
 
     static MainWindow()
     {
-        // Button class handlers run before the XAML instance Click handler. We only
-        // intercept the seven navigation buttons; all save/delete buttons keep their
-        // existing handlers unchanged.
         EventManager.RegisterClassHandler(
             typeof(Button),
             Button.ClickEvent,
@@ -64,18 +61,24 @@ public partial class MainWindow
                 window.FastShowPage(window.HistoryPage, "روزانہ ہسٹری", window.NavHistory);
                 break;
             default:
-                // Save/delete buttons refresh ItemsSource in their normal handlers.
-                // Polish direction labels immediately afterwards without slowing the click itself.
+                // Normal save/delete handlers execute after this class handler. Re-polish only
+                // the page that is currently visible, so fresh grid rows also get Urdu text/font.
                 window.Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
                 {
+                    if (window.DashboardPage.Visibility == Visibility.Visible) PolishVisualTree(window.DashboardPage);
+                    else if (window.AccountPage.Visibility == Visibility.Visible) PolishVisualTree(window.AccountPage);
+                    else if (window.TanzeemPage.Visibility == Visibility.Visible) PolishVisualTree(window.TanzeemPage);
+                    else if (window.AccessoriesPage.Visibility == Visibility.Visible) PolishVisualTree(window.AccessoriesPage);
+                    else if (window.ClosingPage.Visibility == Visibility.Visible) PolishVisualTree(window.ClosingPage);
+                    else if (window.HistoryPage.Visibility == Visibility.Visible) PolishVisualTree(window.HistoryPage);
+
                     window.PolishDirectionLabels();
                     PolishVisualTree(window.StatusText);
+                    CurrencyTypographyPatch.AttachFor(window);
                 }));
                 return;
         }
 
-        // Prevent the old ShowPage handler from running afterwards. The old handler
-        // refreshed every hidden grid and was the main cause of the tab-switch pause.
         e.Handled = true;
     }
 
@@ -104,8 +107,6 @@ public partial class MainWindow
         nav.Background = Application.Current.Resources["AccentBrush"] as Brush ?? Brushes.Goldenrod;
         nav.Foreground = Brushes.Black;
 
-        // Recalculate the day once, then refresh only the visible page. Hidden pages
-        // are refreshed lazily when the user opens them.
         DukanHisab.Core.AccountingEngine.Recalculate(_day);
         if (ReferenceEquals(page, DashboardPage)) RefreshDashboard();
         else if (ReferenceEquals(page, AccountPage)) RefreshAccountPage();
@@ -114,8 +115,8 @@ public partial class MainWindow
         else if (ReferenceEquals(page, ClosingPage)) RefreshClosing();
         else if (ReferenceEquals(page, HistoryPage)) RefreshHistory();
 
-        // Some collapsed pages do not create all visual children at initial Window.Loaded.
-        // Re-polish the page when it actually becomes visible so no English/fallback font remains.
+        // Collapsed WPF pages do not always create all visual children at Window.Loaded.
+        // Polish the page again when it becomes visible.
         PolishVisualTree(page);
         PolishVisualTree(PageTitle);
         PolishVisualTree(StatusText);
@@ -171,11 +172,15 @@ public partial class MainWindow
         {
             combo.FontFamily = UrduPolishFont;
             combo.MinHeight = Math.Max(combo.MinHeight, 40d);
+
+            // ComboBox item containers may not yet exist visually, so normalize the data items too.
+            foreach (var item in combo.Items.OfType<ComboBoxItem>())
+                if (item.Content is string caption) item.Content = PolishText(caption);
         }
         else if (root is TextBox box)
         {
-            // Keep numeric amount/commission boxes in Segoe UI for clear digits,
-            // but Urdu note fields use Nastaleeq.
+            // Numeric amount/commission boxes stay in Segoe UI for clean digits;
+            // Urdu note fields use Nastaleeq.
             if (box.Name.Contains("Note", StringComparison.OrdinalIgnoreCase)) box.FontFamily = UrduPolishFont;
         }
         else if (root is DataGrid grid)
@@ -229,7 +234,6 @@ public partial class MainWindow
             _ => text
         };
 
-        // Keep the UI completely Urdu and normalize the shop's correct name.
         polished = polished
             .Replace("تنظیم", "تنظم", StringComparison.Ordinal)
             .Replace("Opening Total", "ابتدائی کل رقم", StringComparison.Ordinal)
