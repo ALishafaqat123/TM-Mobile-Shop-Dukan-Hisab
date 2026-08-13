@@ -1,26 +1,19 @@
 # TM Mobile Shop — Dukan Hisab
 
-Private development repository for the TM Mobile Shop accounting application.
+Private development repository for the TM Mobile Shop accounting software.
 
-## Current working baseline
+## Current working reference
 
-- **Smart PC v1.20** — PowerShell/WPF implementation used as the verified accounting reference.
-- The current production data remains outside this repository and is not overwritten by development builds.
-- The next phase is to migrate the tested accounting logic into a proper compiled Windows application while keeping the working PowerShell version intact.
+The proven working desktop version is **Smart PC v1.20**. Its accounting rules remain the reference baseline while the compiled Windows replacement is developed separately.
 
-## Core accounting rules
+## Development branches
 
-- Final daily profit is based on **actual Closing balances**, not on whether every JazzCash/Easypaisa transaction was entered.
-- `Tanzeem In/Out` entries are essential because they cross the shop/external boundary and directly affect profit.
-- Internal transfers between shop balances are not profit.
-- JazzCash/Easypaisa transaction entry is primarily for running balances, commission tracking, and diagnostics.
-- Previous-day Closing corrections must sync into the next day's Opening while preserving later-day transactions.
-- Corrections/edits should be auditable.
+- `baseline-v1.20` — frozen reference point for the working PowerShell/WPF line.
+- `compiled-app-dev` — new compiled .NET/WPF application, installed side-by-side.
+- `performance-experiments` — optional isolated experiments; never used for live accounting.
 
-## Repository layout
+## Accounting principle
 
-- `legacy/powershell-v1.20/` — working reference implementation.
-- `docs/` — accounting rules and migration notes.
-- Future compiled Windows app source will live separately under `src/` so the reference implementation remains untouched.
+Final profit comes from actual Closing balances, adjusted by Tanzeem In/Out. Detailed JazzCash/Easypaisa transactions help with commission/source tracking but are not required for final Closing profit. Tanzeem boundary entries are required.
 
-> Private repository. Do not commit live customer/account balances, user fonts, or secrets unless intentionally required for a controlled migration.
+See `docs/ACCOUNTING-RULES.md`, `docs/MIGRATION-PLAN.md`, and `docs/NEXT-APP-STATUS.md` for the detailed rules and migration plan.
