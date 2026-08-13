@@ -108,6 +108,7 @@ public partial class MainWindow
         if (sender is not MainWindow window || window._uiPolishApplied) return;
         window._uiPolishApplied = true;
         PolishVisualTree(window);
+        CurrencyTypographyPatch.AttachFor(window);
     }
 
     private static void PolishVisualTree(DependencyObject root)
