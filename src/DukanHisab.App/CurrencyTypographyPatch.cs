@@ -1,26 +1,23 @@
 using System.ComponentModel;
-using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
 
 namespace DukanHisab.App;
 
-public partial class MainWindow
+internal static class CurrencyTypographyPatch
 {
-    static MainWindow()
-    {
-        EventManager.RegisterClassHandler(
-            typeof(MainWindow),
-            FrameworkElement.LoadedEvent,
-            new RoutedEventHandler(MainWindow_LoadedForCurrencyTypography));
-    }
+    private const string CurrencyMarker = " روپے";
+    private static readonly FontFamily NumericFont = new("Segoe UI");
+    private static readonly FontFamily UrduFont = new("Jameel Noori Nastaleeq");
+    private static readonly DependencyPropertyDescriptor TextDescriptor =
+        DependencyPropertyDescriptor.FromProperty(TextBlock.TextProperty, typeof(TextBlock))!;
+    private static readonly HashSet<TextBlock> AttachedBlocks = [];
+    private static readonly HashSet<TextBlock> UpdatingBlocks = [];
 
-    private static void MainWindow_LoadedForCurrencyTypography(object sender, RoutedEventArgs e)
+    public static void AttachFor(MainWindow window)
     {
-        if (sender is not MainWindow window || !ReferenceEquals(e.OriginalSource, window)) return;
-
-        CurrencyTypographyPatch.Attach(
+        Attach(
             window.DashDrawer,
             window.DashJazz,
             window.DashEasy,
@@ -59,19 +56,8 @@ public partial class MainWindow
             window.CloseActualTotal,
             window.CloseProfit);
     }
-}
 
-internal static class CurrencyTypographyPatch
-{
-    private const string CurrencyMarker = " روپے";
-    private static readonly FontFamily NumericFont = new("Segoe UI");
-    private static readonly FontFamily UrduFont = new("Jameel Noori Nastaleeq");
-    private static readonly DependencyPropertyDescriptor TextDescriptor =
-        DependencyPropertyDescriptor.FromProperty(TextBlock.TextProperty, typeof(TextBlock))!;
-    private static readonly HashSet<TextBlock> AttachedBlocks = [];
-    private static readonly HashSet<TextBlock> UpdatingBlocks = [];
-
-    public static void Attach(params TextBlock[] blocks)
+    private static void Attach(params TextBlock[] blocks)
     {
         foreach (var block in blocks)
         {
