@@ -7,9 +7,11 @@
     <Nullable>enable</Nullable>
     <AssemblyName>DukanHisabNext</AssemblyName>
     <RootNamespace>DukanHisab.App</RootNamespace>
+    <ApplicationIcon Condition="Exists('DukanHisab.ico')">DukanHisab.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\DukanHisab.Core\DukanHisab.Core.csproj" />
     <ProjectReference Include="..\DukanHisab.Storage\DukanHisab.Storage.csproj" />
+    <Resource Include="DukanHisab.ico" Condition="Exists('DukanHisab.ico')" />
   </ItemGroup>
 </Project>
