@@ -10,7 +10,7 @@ on:
       - '.github/workflows/windows-build.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -33,10 +33,12 @@ jobs:
           $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
           if (!(Test-Path $iscc)) { throw "Inno Setup compiler not found: $iscc" }
           & $iscc installer\DukanHisabNext.iss
+          Get-FileHash out\installer\Setup-Dukan-Hisab-Next-Preview.exe -Algorithm SHA256 | Format-List
 
-      - name: Upload installer
-        uses: actions/upload-artifact@v7
-        with:
-          name: Dukan-Hisab-Next-Preview
-          path: out/installer/Setup-Dukan-Hisab-Next-Preview.exe
-          if-no-files-found: error
+      - name: Publish preview installer as GitHub prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "next-preview-${{ github.run_number }}"
+          gh release create $tag out\installer\Setup-Dukan-Hisab-Next-Preview.exe --target compiled-app-dev --prerelease --title "Dukan Hisab Next Preview ${{ github.run_number }}" --notes "Compiled .NET 8 WPF side-by-side preview. Smart PC v1.20 remains untouched. Accounting regression checks passed before this installer was built."
