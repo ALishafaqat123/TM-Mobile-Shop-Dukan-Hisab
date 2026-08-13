@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>DukanHisabNext</AssemblyName>
+    <RootNamespace>DukanHisab.App</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DukanHisab.Core\DukanHisab.Core.csproj" />
+    <ProjectReference Include="..\DukanHisab.Storage\DukanHisab.Storage.csproj" />
+  </ItemGroup>
+</Project>

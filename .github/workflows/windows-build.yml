@@ -1,0 +1,42 @@
+name: Windows Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ compiled-app-dev ]
+    paths:
+      - 'src/**'
+      - 'installer/**'
+      - '.github/workflows/windows-build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Run accounting regression checks
+        run: dotnet run --project src/DukanHisab.Regression/DukanHisab.Regression.csproj -c Release
+
+      - name: Publish self-contained Windows app
+        run: dotnet publish src/DukanHisab.App/DukanHisab.App.csproj -c Release -r win-x64 --self-contained true -o out/publish
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+          if (!(Test-Path $iscc)) { throw "Inno Setup compiler not found: $iscc" }
+          & $iscc installer\DukanHisabNext.iss
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: Dukan-Hisab-Next-Preview
+          path: out/installer/Setup-Dukan-Hisab-Next-Preview.exe
+          if-no-files-found: error
