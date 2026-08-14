@@ -13,6 +13,13 @@ public sealed class DayStore
         WriteIndented = true
     };
 
+    private static readonly JsonSerializerOptions CompactJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = false
+    };
+
     public string Root { get; }
     public string DaysDirectory { get; }
     public string LegacyDaysDirectory { get; }
@@ -37,7 +44,7 @@ public sealed class DayStore
         if (imported is not null)
         {
             imported.Version = "next-imported-v1.20";
-            Save(imported, false);
+            Save(imported, false, false);
         }
         return imported;
     }
@@ -71,7 +78,7 @@ public sealed class DayStore
             var item = ReadLegacy(date);
             if (item is null) continue;
             item.Version = "next-imported-v1.20";
-            Save(item, false);
+            Save(item, false, false);
             count++;
         }
         return count;
@@ -91,11 +98,12 @@ public sealed class DayStore
         return day;
     }
 
-    public void Save(DayRecord day, bool writeAuditTimestamp = true)
+    public void Save(DayRecord day, bool writeAuditTimestamp = true, bool writeTextMirror = true)
     {
         AccountingEngine.Recalculate(day);
         if (writeAuditTimestamp) day.SavedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-        var path = NativePath(DateTime.ParseExact(day.Date, "yyyy-MM-dd", null));
+        var date = DateTime.ParseExact(day.Date, "yyyy-MM-dd", null);
+        var path = NativePath(date);
         var tmp = path + ".tmp";
         var bak = path + ".bak";
         var json = JsonSerializer.Serialize(day, JsonOptions);
@@ -103,7 +111,133 @@ public sealed class DayStore
         if (File.Exists(path)) File.Copy(path, bak, true);
         File.Move(tmp, path, true);
         _ = ReadJson(path) ?? throw new IOException("Saved day could not be read back.");
+
+        if (writeTextMirror) WriteTextMirror(day, date);
     }
+
+    private void WriteTextMirror(DayRecord day, DateTime date)
+    {
+        Directory.CreateDirectory(LegacyMirrorDirectory);
+        var path = Path.Combine(LegacyMirrorDirectory, "Dukan-Hisab-" + date.ToString("yyyy-MM-dd") + ".txt");
+        var tmp = path + ".tmp";
+        var bak = path + ".bak";
+        var report = BuildTextReport(day, date);
+
+        File.WriteAllText(tmp, report, new UTF8Encoding(true));
+        if (File.Exists(path)) File.Copy(path, bak, true);
+        File.Move(tmp, path, true);
+
+        // Verify the recovery payload can be read back before considering the mirror healthy.
+        var recoveryLine = File.ReadLines(path, Encoding.UTF8)
+            .LastOrDefault(x => x.StartsWith("SMART_DATA_JSON=", StringComparison.Ordinal));
+        if (string.IsNullOrWhiteSpace(recoveryLine))
+            throw new IOException("Daily TXT mirror was written without recovery data.");
+        _ = JsonSerializer.Deserialize<DayRecord>(recoveryLine["SMART_DATA_JSON=".Length..], CompactJsonOptions)
+            ?? throw new IOException("Daily TXT mirror recovery data could not be read back.");
+    }
+
+    private static string BuildTextReport(DayRecord day, DateTime date)
+    {
+        var sb = new StringBuilder();
+        var current = AccountingEngine.CurrentBalances(day);
+        var tz = AccountingEngine.TanzeemTotals(day);
+        var live = AccountingEngine.LiveProfit(day);
+        var liveSrc = AccountingEngine.ProfitSourceSummary(day, false);
+        var closing = AccountingEngine.GetClosingSummary(day);
+
+        sb.AppendLine($"دکان حساب Next — {date:dd-MM-yyyy}");
+        sb.AppendLine();
+        AppendAccount(sb, Accounts.Drawer, day.Opening.Drawer, current.Drawer);
+        AppendAccount(sb, Accounts.Computer, day.Opening.Computer, current.Computer);
+        AppendAccount(sb, Accounts.Easy, day.Opening.Easy, current.Easy);
+        AppendAccount(sb, Accounts.Jazz, day.Opening.Jazz, current.Jazz);
+        AppendAccount(sb, Accounts.OneLoad, day.Opening.Oneload, current.Oneload);
+        sb.AppendLine();
+        sb.AppendLine($"دکان سے تنظم کے پاس گئے: {Fmt(tz.In)} روپے ({tz.InCount} دفعہ)");
+        sb.AppendLine($"تنظم سے دکان میں آئے: {Fmt(tz.Out)} روپے ({tz.OutCount} دفعہ)");
+        sb.AppendLine($"انٹریوں کے مطابق حسابی منافع/فرق: {Fmt(live)} روپے");
+        sb.AppendLine($"منافع کی حسابی تقسیم: جیزکیش کمیشن {Fmt(liveSrc.Jazz)} | ایزی پیسہ کمیشن {Fmt(liveSrc.Easy)} | تنظم کمیشن {Fmt(liveSrc.Tanzeem)} | اسیسریز {Fmt(liveSrc.Accessories)} | کمپیوٹر {Fmt(liveSrc.Computer)} | غیر واضح {Fmt(liveSrc.Unexplained)}");
+        sb.AppendLine($"دکان کا منافع بغیر کمپیوٹر: {Fmt(liveSrc.ShopWithoutComputer)} روپے");
+        sb.AppendLine();
+
+        sb.AppendLine("دن کا آخری حساب / کل کاروباری رقم:");
+        if (closing.Complete && closing.Actual is not null)
+        {
+            AppendClosing(sb, Accounts.Computer, closing.Book.Computer, closing.Actual.Computer);
+            AppendClosing(sb, Accounts.Drawer, closing.Book.Drawer, closing.Actual.Drawer);
+            AppendClosing(sb, Accounts.Jazz, closing.Book.Jazz, closing.Actual.Jazz);
+            AppendClosing(sb, Accounts.Easy, closing.Book.Easy, closing.Actual.Easy);
+            AppendClosing(sb, Accounts.OneLoad, closing.Book.Oneload, closing.Actual.Oneload);
+            var closeSrc = AccountingEngine.ProfitSourceSummary(day, true);
+            sb.AppendLine($"اصل اختتامی کل رقم: {Fmt(closing.ActualTotal)} روپے");
+            sb.AppendLine($"دن کا اصل منافع: {Fmt(closing.ActualProfit ?? 0m)} روپے");
+            sb.AppendLine($"آخری حساب کی تقسیم: جیزکیش کمیشن {Fmt(closeSrc.Jazz)} | ایزی پیسہ کمیشن {Fmt(closeSrc.Easy)} | تنظم کمیشن {Fmt(closeSrc.Tanzeem)} | اسیسریز {Fmt(closeSrc.Accessories)} | کمپیوٹر {Fmt(closeSrc.Computer)} | غیر واضح {Fmt(closeSrc.Unexplained)}");
+            sb.AppendLine($"آخری حساب محفوظ: {day.Closing.CheckedAt}");
+        }
+        else
+        {
+            sb.AppendLine("آخری حساب ابھی مکمل نہیں۔");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("آج کی تمام انٹریز:");
+        for (var i = 0; i < day.Transactions.Count; i++)
+            sb.AppendLine(TransactionReportLine(i + 1, day.Transactions[i]));
+
+        if (day.Audit.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine($"درستیاں / ترامیم: {day.Audit.Count}");
+        }
+
+        sb.AppendLine();
+        sb.Append("SMART_DATA_JSON=");
+        sb.Append(JsonSerializer.Serialize(day, CompactJsonOptions));
+        return sb.ToString();
+    }
+
+    private static void AppendAccount(StringBuilder sb, string account, decimal opening, decimal current)
+        => sb.AppendLine($"{UrduAccount(account)}: آغاز {Fmt(opening)} | ابھی {Fmt(current)} روپے");
+
+    private static void AppendClosing(StringBuilder sb, string account, decimal book, decimal actual)
+        => sb.AppendLine($"{UrduAccount(account)}: حسابی {Fmt(book)} | اصل {Fmt(actual)} | فرق {Fmt(actual - book)} روپے");
+
+    private static string TransactionReportLine(int index, TransactionRecord tx)
+    {
+        string primary;
+        string direction;
+        string counter;
+
+        if (tx.Category == "accessory")
+        {
+            primary = "موبائل اسیسریز";
+            direction = tx.AccessoryType == "return" ? "واپسی" : "فروخت";
+            counter = "دوسرے گلے کی نقد";
+        }
+        else if (tx.TanzeemType is "in" or "out")
+        {
+            primary = UrduAccount(tx.Primary);
+            direction = tx.TanzeemType == "in" ? "دکان سے تنظم کے پاس گئے" : "تنظم سے دکان میں آئے";
+            counter = "تنظم";
+        }
+        else
+        {
+            primary = UrduAccount(tx.Primary);
+            direction = tx.Direction == "in" ? "وصول کیے" : "سینڈ کیے";
+            counter = UrduAccount(tx.Counter);
+        }
+
+        var line = $"{index}. {tx.Time} — {primary} — {direction} — {Fmt(tx.Amount)} — دوسری طرف: {counter}";
+        var commission = AccountingEngine.TransactionCommission(tx);
+        if (commission > 0) line += $" — کمیشن: {Fmt(commission)}";
+        if (!string.IsNullOrWhiteSpace(tx.Note)) line += $" — {tx.Note.Trim()}";
+        return line;
+    }
+
+    private static string UrduAccount(string key)
+        => key == Accounts.Tanzeem ? "تنظم" : Accounts.UrduName(key).Replace("تنظیم", "تنظم", StringComparison.Ordinal);
+
+    private static string Fmt(decimal value) => AccountingEngine.Format(value);
 
     public string SyncNextOpeningAfterClosingChange(DateTime sourceDate, ClosingData oldClosing, AccountBalances oldBook, bool oldWasComplete, ClosingData newClosing)
     {
