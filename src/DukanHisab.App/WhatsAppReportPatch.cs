@@ -123,10 +123,10 @@ public partial class MainWindow
         var outgoing = _day.Transactions.Where(t => t.Primary == account && t.Direction == "out").ToList();
 
         sb.AppendLine("*وصول کیے*");
-        AppendTransactionList(sb, incoming, accountMode: true);
+        AppendAccountTransactionList(sb, incoming);
 
         sb.AppendLine("*سینڈ کیے*");
-        AppendTransactionList(sb, outgoing, accountMode: true);
+        AppendAccountTransactionList(sb, outgoing);
         sb.AppendLine();
     }
 
@@ -161,7 +161,9 @@ public partial class MainWindow
         sb.AppendLine();
     }
 
-    private static void AppendTransactionList(StringBuilder sb, IReadOnlyList<TransactionRecord> items, bool accountMode)
+    // JazzCash/Easypaisa report deliberately omits commission. The report is meant
+    // to show the actual sent/received amounts cleanly; commission may vary by customer.
+    private static void AppendAccountTransactionList(StringBuilder sb, IReadOnlyList<TransactionRecord> items)
     {
         if (items.Count == 0)
         {
@@ -174,12 +176,8 @@ public partial class MainWindow
             var tx = items[i];
             var line = new StringBuilder();
             line.Append($"{i + 1}. {tx.Time} — {AccountingEngine.Format(tx.Amount)} روپے");
-            if (accountMode && !string.IsNullOrWhiteSpace(tx.Counter))
+            if (!string.IsNullOrWhiteSpace(tx.Counter))
                 line.Append($" — دوسری طرف: {ReportAccountName(tx.Counter)}");
-
-            var commission = AccountingEngine.TransactionCommission(tx);
-            if (commission > 0)
-                line.Append($" — کمیشن: {AccountingEngine.Format(commission)}");
             if (!string.IsNullOrWhiteSpace(tx.Note))
                 line.Append($" — {tx.Note.Trim()}");
             sb.AppendLine(line.ToString());
