@@ -22,7 +22,7 @@ public static class Accounts
         Easy => "ایزی پیسہ شفاقت",
         Jazz => "جیزکیش ٹی ایم موبائل",
         OneLoad => "ون لوڈ",
-        Tanzeem => "تنظیم",
+        Tanzeem => "تنظم",
         Accessories => "موبائل اسیسریز",
         External => "دیگر / نامعلوم",
         _ => key
