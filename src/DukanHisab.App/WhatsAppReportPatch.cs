@@ -65,9 +65,6 @@ public partial class MainWindow
         try
         {
             var report = BuildWhatsAppDetailedReport();
-
-            // Keep a clipboard copy as a safety net. If the browser or WhatsApp Web
-            // blocks the pre-filled share for any reason, the same report is ready to paste.
             Clipboard.SetText(report);
 
             var encoded = WebUtility.UrlEncode(report);
@@ -98,10 +95,13 @@ public partial class MainWindow
         var sb = new StringBuilder();
         sb.AppendLine("*دکان حساب — مکمل روزانہ رپورٹ*");
         sb.AppendLine($"تاریخ: {_selectedDate:dd-MM-yyyy}");
+        if (!string.IsNullOrWhiteSpace(_day.ManualReferenceAt))
+            sb.AppendLine($"صبح کا دستی ریفرنس محفوظ: {_day.ManualReferenceAt}");
         sb.AppendLine();
 
         AppendAccountReport(sb, "جیزکیش ٹی ایم موبائل", Accounts.Jazz, displayedBalances.Jazz);
         AppendAccountReport(sb, "ایزی پیسہ شفاقت", Accounts.Easy, displayedBalances.Easy);
+        AppendAccountReport(sb, "ایزی پیسہ تنظم", Accounts.EasyTanzeem, displayedBalances.EasyTanzeem);
         AppendTanzeemReport(sb);
         AppendAccessoriesReport(sb);
 
@@ -161,8 +161,8 @@ public partial class MainWindow
         sb.AppendLine();
     }
 
-    // JazzCash/Easypaisa report deliberately omits commission. The report is meant
-    // to show the actual sent/received amounts cleanly; commission may vary by customer.
+    // JazzCash/Easypaisa account reports deliberately omit commission. The report is
+    // meant to show the actual sent/received amounts cleanly; commission may vary by customer.
     private static void AppendAccountTransactionList(StringBuilder sb, IReadOnlyList<TransactionRecord> items)
     {
         if (items.Count == 0)
