@@ -24,7 +24,7 @@ public static class AccountingEngine
     public static bool IsAutoCommissionEligible(string primary, string direction, decimal amount, string counter, string tanzeemType = "")
     {
         if (amount <= 0) return false;
-        if ((primary is Accounts.Jazz or Accounts.Easy) && counter == Accounts.Drawer) return true;
+        if ((primary is Accounts.Jazz or Accounts.Easy or Accounts.EasyTanzeem) && counter == Accounts.Drawer) return true;
         if (primary == Accounts.Drawer && counter == Accounts.Tanzeem && (tanzeemType is "in" or "out")) return true;
         return false;
     }
@@ -175,6 +175,7 @@ public static class AccountingEngine
             Drawer = Money(day.Closing.Drawer),
             Computer = Money(day.Closing.Computer),
             Easy = Money(day.Closing.Easy),
+            EasyTanzeem = Money(day.Closing.EasyTanzeem),
             Jazz = Money(day.Closing.Jazz),
             Oneload = Money(day.Closing.Oneload)
         };
@@ -192,7 +193,7 @@ public static class AccountingEngine
             {
                 if (tx.TanzeemType is "in" or "out") tanzeem += cm;
                 else if (tx.Primary == Accounts.Jazz) jazz += cm;
-                else if (tx.Primary == Accounts.Easy) easy += cm;
+                else if (tx.Primary is Accounts.Easy or Accounts.EasyTanzeem) easy += cm;
             }
             if (tx.Category == "accessory")
             {
@@ -228,6 +229,7 @@ public static class AccountingEngine
                 Drawer = Money(previous.Closing.Drawer) + Money(previous.Closing.Computer),
                 Computer = 0m,
                 Easy = Money(previous.Closing.Easy),
+                EasyTanzeem = Money(previous.Closing.EasyTanzeem),
                 Jazz = Money(previous.Closing.Jazz),
                 Oneload = Money(previous.Closing.Oneload)
             };
@@ -239,13 +241,14 @@ public static class AccountingEngine
             Drawer = current.Drawer + current.Computer,
             Computer = 0m,
             Easy = current.Easy,
+            EasyTanzeem = current.EasyTanzeem,
             Jazz = current.Jazz,
             Oneload = current.Oneload
         };
     }
 
     public static bool SameOpening(AccountBalances a, AccountBalances b)
-        => a.Drawer == b.Drawer && a.Computer == b.Computer && a.Easy == b.Easy && a.Jazz == b.Jazz && a.Oneload == b.Oneload;
+        => a.Drawer == b.Drawer && a.Computer == b.Computer && a.Easy == b.Easy && a.EasyTanzeem == b.EasyTanzeem && a.Jazz == b.Jazz && a.Oneload == b.Oneload;
 
     public static void Recalculate(DayRecord day)
     {
