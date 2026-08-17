@@ -7,19 +7,21 @@ public static class Accounts
     public const string Drawer = "drawer";
     public const string Computer = "computer";
     public const string Easy = "easy";
+    public const string EasyTanzeem = "easy_tanzeem";
     public const string Jazz = "jazz";
     public const string OneLoad = "oneload";
     public const string Tanzeem = "tanzeem";
     public const string Accessories = "accessories";
     public const string External = "external";
 
-    public static readonly string[] Internal = [Drawer, Computer, Easy, Jazz, OneLoad];
+    public static readonly string[] Internal = [Drawer, Computer, Easy, EasyTanzeem, Jazz, OneLoad];
 
     public static string UrduName(string key) => key switch
     {
         Drawer => "دوسرے گلے کی کیش",
         Computer => "کمپیوٹر کیش",
         Easy => "ایزی پیسہ شفاقت",
+        EasyTanzeem => "ایزی پیسہ تنظم",
         Jazz => "جیزکیش ٹی ایم موبائل",
         OneLoad => "ون لوڈ",
         Tanzeem => "تنظم",
@@ -34,17 +36,19 @@ public sealed class AccountBalances
     public decimal Drawer { get; set; }
     public decimal Computer { get; set; }
     public decimal Easy { get; set; }
+    public decimal EasyTanzeem { get; set; }
     public decimal Jazz { get; set; }
     public decimal Oneload { get; set; }
 
     [JsonIgnore]
-    public decimal Total => Drawer + Computer + Easy + Jazz + Oneload;
+    public decimal Total => Drawer + Computer + Easy + EasyTanzeem + Jazz + Oneload;
 
     public decimal Get(string key) => key switch
     {
         Accounts.Drawer => Drawer,
         Accounts.Computer => Computer,
         Accounts.Easy => Easy,
+        Accounts.EasyTanzeem => EasyTanzeem,
         Accounts.Jazz => Jazz,
         Accounts.OneLoad => Oneload,
         _ => 0m
@@ -57,6 +61,7 @@ public sealed class AccountBalances
             case Accounts.Drawer: Drawer = value; break;
             case Accounts.Computer: Computer = value; break;
             case Accounts.Easy: Easy = value; break;
+            case Accounts.EasyTanzeem: EasyTanzeem = value; break;
             case Accounts.Jazz: Jazz = value; break;
             case Accounts.OneLoad: Oneload = value; break;
         }
@@ -69,6 +74,7 @@ public sealed class AccountBalances
         Drawer = Drawer,
         Computer = Computer,
         Easy = Easy,
+        EasyTanzeem = EasyTanzeem,
         Jazz = Jazz,
         Oneload = Oneload
     };
@@ -118,6 +124,11 @@ public sealed class ClosingData
     public string Drawer { get; set; } = "";
     public string Computer { get; set; } = "";
     public string Easy { get; set; } = "";
+
+    // Default 0 keeps already-saved pre-feature closing records complete when this
+    // new account did not exist yet. New days explicitly reset this to blank.
+    public string EasyTanzeem { get; set; } = "0";
+
     public string Jazz { get; set; } = "";
     public string Oneload { get; set; } = "";
     public string CheckedAt { get; set; } = "";
@@ -127,6 +138,7 @@ public sealed class ClosingData
         Accounts.Drawer => Drawer,
         Accounts.Computer => Computer,
         Accounts.Easy => Easy,
+        Accounts.EasyTanzeem => EasyTanzeem,
         Accounts.Jazz => Jazz,
         Accounts.OneLoad => Oneload,
         _ => ""
@@ -139,6 +151,7 @@ public sealed class ClosingData
             case Accounts.Drawer: Drawer = value; break;
             case Accounts.Computer: Computer = value; break;
             case Accounts.Easy: Easy = value; break;
+            case Accounts.EasyTanzeem: EasyTanzeem = value; break;
             case Accounts.Jazz: Jazz = value; break;
             case Accounts.OneLoad: Oneload = value; break;
         }
@@ -149,6 +162,7 @@ public sealed class ClosingData
         Drawer = Drawer,
         Computer = Computer,
         Easy = Easy,
+        EasyTanzeem = EasyTanzeem,
         Jazz = Jazz,
         Oneload = Oneload,
         CheckedAt = CheckedAt
@@ -168,6 +182,11 @@ public sealed class DayRecord
     public string Version { get; set; } = "next-0.1";
     public string Date { get; set; } = "";
     public string BaselineTime { get; set; } = "";
+
+    // Non-empty means the Opening snapshot was manually counted for this date.
+    // Previous-day repair/sync must not replace this user-selected base.
+    public string ManualReferenceAt { get; set; } = "";
+
     public AccountBalances Opening { get; set; } = new();
     public AccountBalances Current { get; set; } = new();
     public List<TransactionRecord> Transactions { get; set; } = [];
