@@ -91,7 +91,7 @@ public sealed class DayStore
             Version = "next-0.1",
             Date = date.ToString("yyyy-MM-dd"),
             Opening = opening.Clone(), Current = opening.Clone(), Transactions = [], Audit = [],
-            Closing = new ClosingData(), Checks = new ChecksData()
+            Closing = new ClosingData { EasyTanzeem = "" }, Checks = new ChecksData()
         };
         AccountingEngine.Recalculate(day);
         Save(day);
@@ -127,7 +127,6 @@ public sealed class DayStore
         if (File.Exists(path)) File.Copy(path, bak, true);
         File.Move(tmp, path, true);
 
-        // Verify the recovery payload can be read back before considering the mirror healthy.
         var recoveryLine = File.ReadLines(path, Encoding.UTF8)
             .LastOrDefault(x => x.StartsWith("SMART_DATA_JSON=", StringComparison.Ordinal));
         if (string.IsNullOrWhiteSpace(recoveryLine))
@@ -146,10 +145,13 @@ public sealed class DayStore
         var closing = AccountingEngine.GetClosingSummary(day);
 
         sb.AppendLine($"دکان حساب Next — {date:dd-MM-yyyy}");
+        if (!string.IsNullOrWhiteSpace(day.ManualReferenceAt))
+            sb.AppendLine($"آج کا دستی ریفرنس / نئی بنیاد: {day.ManualReferenceAt}");
         sb.AppendLine();
         AppendAccount(sb, Accounts.Drawer, day.Opening.Drawer, current.Drawer);
         AppendAccount(sb, Accounts.Computer, day.Opening.Computer, current.Computer);
         AppendAccount(sb, Accounts.Easy, day.Opening.Easy, current.Easy);
+        AppendAccount(sb, Accounts.EasyTanzeem, day.Opening.EasyTanzeem, current.EasyTanzeem);
         AppendAccount(sb, Accounts.Jazz, day.Opening.Jazz, current.Jazz);
         AppendAccount(sb, Accounts.OneLoad, day.Opening.Oneload, current.Oneload);
         sb.AppendLine();
@@ -167,6 +169,7 @@ public sealed class DayStore
             AppendClosing(sb, Accounts.Drawer, closing.Book.Drawer, closing.Actual.Drawer);
             AppendClosing(sb, Accounts.Jazz, closing.Book.Jazz, closing.Actual.Jazz);
             AppendClosing(sb, Accounts.Easy, closing.Book.Easy, closing.Actual.Easy);
+            AppendClosing(sb, Accounts.EasyTanzeem, closing.Book.EasyTanzeem, closing.Actual.EasyTanzeem);
             AppendClosing(sb, Accounts.OneLoad, closing.Book.Oneload, closing.Actual.Oneload);
             var closeSrc = AccountingEngine.ProfitSourceSummary(day, true);
             sb.AppendLine($"اصل اختتامی کل رقم: {Fmt(closing.ActualTotal)} روپے");
@@ -244,6 +247,8 @@ public sealed class DayStore
         var nextDate = sourceDate.Date.AddDays(1);
         var next = LoadNativeOnly(nextDate);
         if (next is null) return "";
+        if (!string.IsNullOrWhiteSpace(next.ManualReferenceAt))
+            return $"{nextDate:dd-MM-yyyy} کا دستی ریفرنس محفوظ ہے؛ اس کی Opening خودکار تبدیل نہیں کی گئی۔";
 
         var oldPrev = new DayRecord { Opening = new AccountBalances(), Current = oldBook.Clone(), Closing = oldClosing.Clone() };
         var newPrev = new DayRecord { Opening = new AccountBalances(), Closing = newClosing.Clone(), Current = oldBook.Clone() };
@@ -264,6 +269,7 @@ public sealed class DayStore
     public bool RepairOpeningFromPreviousIfNeeded(DateTime date, DayRecord day, out string note)
     {
         note = "";
+        if (!string.IsNullOrWhiteSpace(day.ManualReferenceAt)) return false;
         var previousDate = FindPreviousDate(date);
         if (previousDate is null) return false;
         var previous = Load(previousDate.Value);
