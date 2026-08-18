@@ -34,6 +34,21 @@ jobs:
           git commit -m "Android build started [skip ci]" || true
           git push origin HEAD:android-tm-mobile-shop
 
+      - name: Repair Preview 5 UI if needed
+        run: |
+          if grep -qx 'PLACEHOLDER' app/src/main/assets/index.html; then
+            python3 ci/repair_android_v5.py
+            git add app/src/main/assets/index.html
+            git commit -m "Restore Android minimal UI with Preview 5 fixes [skip ci]"
+            git push origin HEAD:android-tm-mobile-shop
+          fi
+          grep -q "computerIncomeForDay" app/src/main/assets/index.html
+          grep -q "accountPickerOverlay" app/src/main/assets/index.html
+          if grep -q '<select' app/src/main/assets/index.html; then
+            echo 'Native select popup still present'
+            exit 1
+          fi
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -65,7 +80,10 @@ jobs:
           m=re.search(r'<script>(.*)</script>',p,re.S)
           if not m:
               raise SystemExit('script block not found')
-          Path('/tmp/tm-mobile-shop.js').write_text(m.group(1))
+          js=m.group(1)
+          if "computer=n(actual.computer)-n(d.opening.computer)" in js:
+              raise SystemExit('old computer profit formula still present')
+          Path('/tmp/tm-mobile-shop.js').write_text(js)
           PY
           node --check /tmp/tm-mobile-shop.js
 
@@ -88,7 +106,7 @@ jobs:
             --target android-tm-mobile-shop \
             --prerelease \
             --title "TM Mobile Shop Minimal Preview ${GITHUB_RUN_NUMBER}" \
-            --notes "Minimal owner-first Android preview. Jameel Noori Nastaleeq integrated; three-section navigation (History, Home, Tanzeem); second-drawer note counting; optional wallet details; profit only from closing balances; Smart Closing Check; Android 8.1+."
+            --notes "Minimal owner-first Android preview. Fixes computer profit split so old Reference computer cash is not treated as today's loss; replaces Android native account selector with an in-app Jameel Noori Nastaleeq picker; keeps closing-only profit, Smart Closing Check, Reference, note counting, History and Tanzeem. Android 8.1+."
           cat > LATEST-ANDROID-RELEASE.txt <<STATUS
           STATUS=SUCCESS
           TM Mobile Shop Minimal Preview ${GITHUB_RUN_NUMBER}
