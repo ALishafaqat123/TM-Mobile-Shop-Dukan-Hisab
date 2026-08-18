@@ -32,6 +32,94 @@ jobs:
       - name: Restore signing key
         run: base64 -d ci/tm-mobile-shop.jks.b64 > ci/tm-mobile-shop.jks
 
+      - name: Patch computer profit logic and validate accounting rules
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('app/src/main/assets/index.html')
+          s = path.read_text(encoding='utf-8')
+
+          def rep(old, new, label):
+              global s
+              if old not in s:
+                  raise SystemExit(f'Patch target missing: {label}')
+              s = s.replace(old, new, 1)
+
+          rep(
+              "let state={version:3,days:{}};let currentPage='home';",
+              "let state={version:4,days:{}};let currentPage='home';",
+              'state version')
+
+          rep(
+              "function loadState(){try{const raw=bridge()?bridge().loadState():localStorage.getItem('tmMobileShopState');if(raw){const p=JSON.parse(raw);if(p&&p.days)state=p}}catch(e){}state.version=3;activeDateKey=todayKey();ensureDay(activeDateKey);saveState()}",
+              "function loadState(){try{const raw=bridge()?bridge().loadState():localStorage.getItem('tmMobileShopState');if(raw){const p=JSON.parse(raw);if(p&&p.days)state=p}}catch(e){}if(n(state.version)<4)migrateSavedProfitLogic();state.version=4;activeDateKey=todayKey();ensureDay(activeDateKey);saveState()}",
+              'load-state migration')
+
+          rep(
+              "function closingProfit(d,actual){const t=tanzeemTotals(d);return balanceTotal(actual)-balanceTotal(d.opening)+t.shopTo-t.toShop}",
+              "function profitPartsForDay(d,actual){const t=tanzeemTotals(d),shopOpening=balanceTotal(d.opening)-n(d.opening.computer),shopActual=balanceTotal(actual)-n(actual.computer),shop=shopActual-shopOpening+t.shopTo-t.toShop,computer=n(actual.computer);return{shop,computer,total:shop+computer}}\nfunction closingProfit(d,actual){return profitPartsForDay(d,actual).total}\nfunction migrateSavedProfitLogic(){for(const d of Object.values(state.days||{})){if(!d||!d.closing||!d.closing.saved||!d.closing.actual)continue;d.opening=Object.assign(emptyBalances(),d.opening||{});const p=profitPartsForDay(d,Object.assign(emptyBalances(),d.closing.actual||{}));d.closing.shopProfit=p.shop;d.closing.computerProfit=p.computer;d.closing.profit=p.total}}",
+              'profit core')
+
+          rep(
+              "function profitParts(actual){const d=day(),total=closingProfit(d,actual),computer=computerIncomeForDay(d),shop=total-computer;return{shop,computer,total}}",
+              "function profitParts(actual){return profitPartsForDay(day(),actual)}",
+              'profit parts')
+
+          rep(
+              "function updateProfitPreview(){const actual=readHomeActual();if(!actual){setProfitCard('shopProfit',null);setProfitCard('computerProfit',null);setProfitCard('totalProfit',null);document.getElementById('closingHint').textContent=activeIsToday()?'تمام رقمیں لکھنے کے بعد منافع خود ظاہر ہوگا۔':'اس دن کی مکمل رقمیں موجود ہوں تو منافع دکھایا جائے گا۔';return}let p;if(activeSaved()&&!canEditActive()){const c=day().closing;p={total:n(c.profit),computer:c.computerProfit!=null?n(c.computerProfit):computerIncomeForDay(day()),shop:c.shopProfit!=null?n(c.shopProfit):n(c.profit)-computerIncomeForDay(day())}}else p=profitParts(actual);setProfitCard('shopProfit',p.shop);setProfitCard('computerProfit',p.computer);setProfitCard('totalProfit',p.total);const t=tanzeemTotals(day());document.getElementById('closingHint').textContent=`ابتدائی کل ${fmt(balanceTotal(day().opening))} • دکان→تنظم ${fmt(t.shopTo)} • تنظم→دکان ${fmt(t.toShop)}`}",
+              "function updateProfitPreview(){const actual=readHomeActual();if(!actual){setProfitCard('shopProfit',null);setProfitCard('computerProfit',null);setProfitCard('totalProfit',null);document.getElementById('closingHint').textContent=activeIsToday()?'تمام رقمیں لکھنے کے بعد منافع خود ظاہر ہوگا۔':'اس دن کی مکمل رقمیں موجود ہوں تو منافع دکھایا جائے گا۔';return}let p;if(activeSaved()&&!canEditActive()){const c=day().closing,fallback=profitPartsForDay(day(),c.actual||emptyBalances());p={total:c.profit!=null?n(c.profit):fallback.total,computer:c.computerProfit!=null?n(c.computerProfit):fallback.computer,shop:c.shopProfit!=null?n(c.shopProfit):fallback.shop}}else p=profitParts(actual);setProfitCard('shopProfit',p.shop);setProfitCard('computerProfit',p.computer);setProfitCard('totalProfit',p.total);const t=tanzeemTotals(day());document.getElementById('closingHint').textContent=`ابتدائی کل ${fmt(balanceTotal(day().opening))} • دکان→تنظم ${fmt(t.shopTo)} • تنظم→دکان ${fmt(t.toShop)}`}",
+              'preview saved fallback')
+
+          rep(
+              "function mismatchScore(actual,book){return MONEY_ACCOUNTS.reduce((s,k)=>s+Math.abs(n(actual[k])-n(book[k])),0)}",
+              "function mismatchScore(actual,book){return MONEY_ACCOUNTS.filter(k=>k!=='computer').reduce((s,k)=>s+Math.abs(n(actual[k])-n(book[k])),0)}",
+              'smart audit mismatch')
+
+          rep(
+              "for(const [k,l] of ACCOUNTS){const expected=n(book[k]),got=n(actual[k]);if(expected>=1000&&got>0){",
+              "const detailedComputer=computerIncomeForDay(d);if(detailedComputer>0&&Math.round(detailedComputer)!==Math.round(n(actual.computer)))items.push(`کمپیوٹر کی تفصیلی آمدن ${fmt(detailedComputer)} ہے مگر ہوم میں ${fmt(actual.computer)} لکھی ہے۔`);\nfor(const [k,l] of ACCOUNTS){if(k==='computer')continue;const expected=n(book[k]),got=n(actual[k]);if(expected>=1000&&got>0){",
+              'smart audit computer exclusion')
+
+          rep(
+              "function renderHistory(){const list=Object.values(state.days).filter(d=>d.closing&&d.closing.saved).sort((a,b)=>b.date.localeCompare(a.date));document.getElementById('historyList').innerHTML=list.length?list.map(d=>{const c=d.closing,p=n(c.profit),cp=computerIncomeForDay(d),sp=p-cp;return",
+              "function renderHistory(){const list=Object.values(state.days).filter(d=>d.closing&&d.closing.saved).sort((a,b)=>b.date.localeCompare(a.date));document.getElementById('historyList').innerHTML=list.length?list.map(d=>{const c=d.closing,fallback=profitPartsForDay(d,c.actual||emptyBalances()),p=c.profit!=null?n(c.profit):fallback.total,cp=c.computerProfit!=null?n(c.computerProfit):fallback.computer,sp=c.shopProfit!=null?n(c.shopProfit):fallback.shop;return",
+              'history profit split')
+
+          rep(
+              "function reportText(d){const c=d.closing&&d.closing.saved?d.closing:null,actual=c?c.actual:emptyBalances(),t=tanzeemTotals(d),p=c?n(c.profit):0,cp=computerIncomeForDay(d),sp=p-cp;let s=",
+              "function reportText(d){const c=d.closing&&d.closing.saved?d.closing:null,actual=c?c.actual:emptyBalances(),t=tanzeemTotals(d),fallback=c?profitPartsForDay(d,actual):{shop:0,computer:0,total:0},p=c&&c.profit!=null?n(c.profit):fallback.total,cp=c&&c.computerProfit!=null?n(c.computerProfit):fallback.computer,sp=c&&c.shopProfit!=null?n(c.shopProfit):fallback.shop;let s=",
+              'report profit split')
+
+          # Preserve the already-correct next-day rollover rule: yesterday's computer cash joins drawer and computer resets to zero.
+          rollover = "return{drawer:n(a.drawer)+n(a.computer),computer:0,jazz:n(a.jazz),easyTanzeem:n(a.easyTanzeem),easy:n(a.easy),oneload:n(a.oneload)}"
+          if rollover not in s:
+              raise SystemExit('Next-day computer-to-drawer rollover rule missing')
+
+          path.write_text(s, encoding='utf-8')
+
+          # Extract JS for a syntax check in the next step.
+          js = s.split('<script>',1)[1].split('</script>',1)[0]
+          Path('/tmp/tm-mobile-shop.js').write_text(js, encoding='utf-8')
+
+          # Regression case from 18-08-2026:
+          opening = dict(drawer=68600, computer=2700, jazz=87572, easyTanzeem=142076, easy=8680, oneload=2754)
+          actual = dict(drawer=57050, computer=2300, jazz=80870, easyTanzeem=147072, easy=14180, oneload=1404)
+          open_shop = sum(opening.values()) - opening['computer']
+          actual_shop = sum(actual.values()) - actual['computer']
+          shop = actual_shop - open_shop + 13000
+          computer = actual['computer']
+          total = shop + computer
+          assert shop == 3894, shop
+          assert computer == 2300, computer
+          assert total == 6194, total
+          assert actual['drawer'] + actual['computer'] == 59350
+          print('PASS: shop=3894, computer=2300, total=6194')
+          print('PASS: next-day drawer receives previous computer cash; computer resets to zero')
+          PY
+
+          node --check /tmp/tm-mobile-shop.js
+
       - name: Build release APK
         run: gradle :app:assembleRelease --stacktrace
 
@@ -57,7 +145,7 @@ jobs:
           git push origin "$TAG"
           gh release create "$TAG" TM-Mobile-Shop-Preview.apk TM-Mobile-Shop-Preview-SHA256.txt \
             --title "TM Mobile Shop Preview ${GITHUB_RUN_NUMBER}" \
-            --notes "Compact offline Android preview. No live profit; Smart Closing Audit; Reference; note counting for second drawer; Android 8.1+."
+            --notes "Android-only fix: computer is today's income, not opening-balance difference. Shop profit excludes computer opening; total profit = shop profit + today's computer income. Previous day's computer cash rolls into next day's drawer. Smart Closing Audit ignores computer as a wallet-style balance."
           cat > LATEST-ANDROID-RELEASE.txt <<STATUS
           TM Mobile Shop Preview ${GITHUB_RUN_NUMBER}
           TAG=${TAG}
