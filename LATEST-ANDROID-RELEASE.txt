@@ -1,6 +1,4 @@
-STATUS=SUCCESS
-TM Mobile Shop Preview 3
-TAG=tm-mobile-shop-preview-3
-APK=https://github.com/ALishafaqat123/TM-Mobile-Shop-Dukan-Hisab/releases/download/tm-mobile-shop-preview-3/TM-Mobile-Shop-Preview.apk
-SHA256=90f9bf0bf1d7bf3690e38035f8d9099d335c39dac1de629c410a33795c68ed1c
-RUN_ID=32123806596
+STATUS=STARTED
+RUN_NUMBER=4
+RUN_ID=32134373337
+SOURCE_BRANCH=android-tm-mobile-shop
