@@ -3,6 +3,8 @@ name: TM Mobile Shop Android
 on:
   push:
     branches: [ android-tm-mobile-shop ]
+    paths-ignore:
+      - 'LATEST-ANDROID-RELEASE.txt'
   workflow_dispatch:
 
 permissions:
@@ -50,8 +52,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="tm-mobile-shop-preview-${GITHUB_RUN_NUMBER}"
+          SHA="$(cut -d' ' -f1 TM-Mobile-Shop-Preview-SHA256.txt)"
           git tag "$TAG"
           git push origin "$TAG"
           gh release create "$TAG" TM-Mobile-Shop-Preview.apk TM-Mobile-Shop-Preview-SHA256.txt \
             --title "TM Mobile Shop Preview ${GITHUB_RUN_NUMBER}" \
             --notes "Compact offline Android preview. No live profit; Smart Closing Audit; Reference; note counting for second drawer; Android 8.1+."
+          cat > LATEST-ANDROID-RELEASE.txt <<STATUS
+          TM Mobile Shop Preview ${GITHUB_RUN_NUMBER}
+          TAG=${TAG}
+          APK=https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/TM-Mobile-Shop-Preview.apk
+          SHA256=${SHA}
+          RUN_ID=${GITHUB_RUN_ID}
+          STATUS
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add LATEST-ANDROID-RELEASE.txt
+          git commit -m "Update Android preview release status [skip ci]"
+          git push origin HEAD:android-tm-mobile-shop
