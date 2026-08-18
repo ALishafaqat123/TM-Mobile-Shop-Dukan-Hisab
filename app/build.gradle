@@ -10,8 +10,8 @@ android {
         applicationId 'com.tmmobileshop.hisab'
         minSdk 27
         targetSdk 35
-        versionCode 2
-        versionName '1.1-minimal-preview'
+        versionCode 3
+        versionName '1.1.1-minimal-fix'
     }
 
     signingConfigs {
