@@ -1,5 +1,7 @@
 # TM Mobile Shop — Android
 
+Preview 1 foundation.
+
 A separate, offline Android accounting app for TM Mobile Shop. It is intentionally independent of the Windows Dukan Hisab software.
 
 ## Core rules
