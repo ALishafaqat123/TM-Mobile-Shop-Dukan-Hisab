@@ -1,4 +1,6 @@
-STATUS=STARTED
-RUN_NUMBER=5
+STATUS=SUCCESS
+TM Mobile Shop Minimal Preview 5
+TAG=tm-mobile-shop-preview-5
+APK=https://github.com/ALishafaqat123/TM-Mobile-Shop-Dukan-Hisab/releases/download/tm-mobile-shop-preview-5/TM-Mobile-Shop-Preview.apk
+SHA256=4534287b9d425b589d9451918aa34d7ce8d3352145ef8ea1c88409dbc2cd8803
 RUN_ID=32137973234
-SOURCE_BRANCH=android-tm-mobile-shop
