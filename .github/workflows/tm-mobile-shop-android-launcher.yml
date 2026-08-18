@@ -34,6 +34,18 @@ jobs:
           git commit -m "Android build started [skip ci]" || true
           git push origin HEAD:android-tm-mobile-shop
 
+      - name: Install Preview 6 calendar-safe UI
+        run: |
+          python3 ci/install_android_v6.py
+          git add app/src/main/assets/index.html app/build.gradle
+          git commit -m "Install Android Preview 6 calendar and draft safety [skip ci]" || true
+          git push origin HEAD:android-tm-mobile-shop
+          grep -q "calendarOverlay" app/src/main/assets/index.html
+          grep -q "activeDateKey" app/src/main/assets/index.html
+          grep -q "draftActual" app/src/main/assets/index.html
+          grep -q "currencyWord" app/src/main/assets/index.html
+          grep -q "versionCode 3" app/build.gradle
+
       - name: Repair Preview 5 UI if needed
         run: |
           if grep -qx 'PLACEHOLDER' app/src/main/assets/index.html; then
@@ -71,7 +83,7 @@ jobs:
           test -s app/src/main/assets/JameelNooriNastaleeq.woff2
           ls -lh app/src/main/assets/JameelNooriNastaleeq.woff2
 
-      - name: Validate JavaScript syntax
+      - name: Validate JavaScript syntax and Preview 6 rules
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -83,6 +95,9 @@ jobs:
           js=m.group(1)
           if "computer=n(actual.computer)-n(d.opening.computer)" in js:
               raise SystemExit('old computer profit formula still present')
+          for marker in ['activeDateKey','calendarOverlay','draftActual','editableDay','currencyWord']:
+              if marker not in p:
+                  raise SystemExit(f'missing Preview 6 marker: {marker}')
           Path('/tmp/tm-mobile-shop.js').write_text(js)
           PY
           node --check /tmp/tm-mobile-shop.js
@@ -106,7 +121,7 @@ jobs:
             --target android-tm-mobile-shop \
             --prerelease \
             --title "TM Mobile Shop Minimal Preview ${GITHUB_RUN_NUMBER}" \
-            --notes "Minimal owner-first Android preview. Fixes computer profit split so old Reference computer cash is not treated as today's loss; replaces Android native account selector with an in-app Jameel Noori Nastaleeq picker; keeps closing-only profit, Smart Closing Check, Reference, note counting, History and Tanzeem. Android 8.1+."
+            --notes "Preview 6: currency word روپے uses Jameel Noori Nastaleeq while digits stay clear; date is tappable with an in-app calendar; today is clearly marked; saved/past dates open read-only until explicit edit; future dates cannot be used; home closing amounts auto-save as a draft; History can reopen a saved day; existing computer-profit fix, account picker, Reference, note counting, Tanzeem and Smart Closing Check remain. Android 8.1+."
           cat > LATEST-ANDROID-RELEASE.txt <<STATUS
           STATUS=SUCCESS
           TM Mobile Shop Minimal Preview ${GITHUB_RUN_NUMBER}
