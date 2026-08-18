@@ -11,7 +11,7 @@ android {
         minSdk 27
         targetSdk 35
         versionCode 3
-        versionName '1.1.1-minimal-fix'
+        versionName '1.2-minimal-calendar'
     }
 
     signingConfigs {
