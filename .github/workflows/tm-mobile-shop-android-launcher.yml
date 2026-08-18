@@ -48,6 +48,14 @@ jobs:
       - name: Restore stable signing key
         run: base64 -d ci/tm-mobile-shop.jks.b64 > ci/tm-mobile-shop.jks
 
+      - name: Integrate Jameel Noori Nastaleeq font
+        run: |
+          curl -L --fail --retry 3 \
+            'https://raw.githubusercontent.com/farid-786/fonts/ea4118d1d5d22cbdb8c628e6fc990f55b1c1148c/jameel-noori-nastaleeq/JameelNooriNastaleeq-Regular.woff2' \
+            -o app/src/main/assets/JameelNooriNastaleeq.woff2
+          test -s app/src/main/assets/JameelNooriNastaleeq.woff2
+          ls -lh app/src/main/assets/JameelNooriNastaleeq.woff2
+
       - name: Validate JavaScript syntax
         run: |
           python3 - <<'PY'
@@ -79,18 +87,18 @@ jobs:
           gh release create "$TAG" TM-Mobile-Shop-Preview.apk TM-Mobile-Shop-Preview-SHA256.txt \
             --target android-tm-mobile-shop \
             --prerelease \
-            --title "TM Mobile Shop Preview ${GITHUB_RUN_NUMBER}" \
-            --notes "Separate compact offline Android app. No live profit; Smart Closing Audit; morning Reference; second-drawer note counting; Android 8.1+."
+            --title "TM Mobile Shop Minimal Preview ${GITHUB_RUN_NUMBER}" \
+            --notes "Minimal owner-first Android preview. Jameel Noori Nastaleeq integrated; three-section navigation (History, Home, Tanzeem); second-drawer note counting; optional wallet details; profit only from closing balances; Smart Closing Check; Android 8.1+."
           cat > LATEST-ANDROID-RELEASE.txt <<STATUS
           STATUS=SUCCESS
-          TM Mobile Shop Preview ${GITHUB_RUN_NUMBER}
+          TM Mobile Shop Minimal Preview ${GITHUB_RUN_NUMBER}
           TAG=${TAG}
           APK=https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/TM-Mobile-Shop-Preview.apk
           SHA256=${SHA}
           RUN_ID=${GITHUB_RUN_ID}
           STATUS
           git add LATEST-ANDROID-RELEASE.txt
-          git commit -m "Update Android preview release status [skip ci]"
+          git commit -m "Update Android minimal preview release status [skip ci]"
           git push origin HEAD:android-tm-mobile-shop
 
       - name: Record failure status
