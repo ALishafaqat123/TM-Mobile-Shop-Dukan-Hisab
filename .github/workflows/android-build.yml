@@ -1,0 +1,57 @@
+name: TM Mobile Shop Android
+
+on:
+  push:
+    branches: [ android-tm-mobile-shop ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Restore signing key
+        run: base64 -d ci/tm-mobile-shop.jks.b64 > ci/tm-mobile-shop.jks
+
+      - name: Build release APK
+        run: gradle :app:assembleRelease --stacktrace
+
+      - name: Prepare artifact
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk TM-Mobile-Shop-Preview.apk
+          sha256sum TM-Mobile-Shop-Preview.apk > TM-Mobile-Shop-Preview-SHA256.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TM-Mobile-Shop-Preview
+          path: |
+            TM-Mobile-Shop-Preview.apk
+            TM-Mobile-Shop-Preview-SHA256.txt
+
+      - name: Publish preview release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="tm-mobile-shop-preview-${GITHUB_RUN_NUMBER}"
+          git tag "$TAG"
+          git push origin "$TAG"
+          gh release create "$TAG" TM-Mobile-Shop-Preview.apk TM-Mobile-Shop-Preview-SHA256.txt \
+            --title "TM Mobile Shop Preview ${GITHUB_RUN_NUMBER}" \
+            --notes "Compact offline Android preview. No live profit; Smart Closing Audit; Reference; note counting for second drawer; Android 8.1+."
