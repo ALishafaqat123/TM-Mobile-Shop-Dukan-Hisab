@@ -20,6 +20,20 @@ jobs:
           ref: android-tm-mobile-shop
           fetch-depth: 0
 
+      - name: Mark build started
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cat > LATEST-ANDROID-RELEASE.txt <<STATUS
+          STATUS=STARTED
+          RUN_NUMBER=${GITHUB_RUN_NUMBER}
+          RUN_ID=${GITHUB_RUN_ID}
+          SOURCE_BRANCH=android-tm-mobile-shop
+          STATUS
+          git add LATEST-ANDROID-RELEASE.txt
+          git commit -m "Android build started [skip ci]" || true
+          git push origin HEAD:android-tm-mobile-shop
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -46,7 +60,7 @@ jobs:
           node --check /tmp/tm-mobile-shop.js
 
       - name: Build release APK
-        run: gradle :app:assembleRelease --stacktrace
+        run: gradle :app:assembleRelease --stacktrace 2>&1 | tee /tmp/android-build.log
 
       - name: Prepare release files
         run: |
@@ -60,7 +74,7 @@ jobs:
             TM-Mobile-Shop-Preview.apk
             TM-Mobile-Shop-Preview-SHA256.txt
 
-      - name: Publish preview release and status
+      - name: Publish preview release and success status
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -72,14 +86,27 @@ jobs:
             --title "TM Mobile Shop Preview ${GITHUB_RUN_NUMBER}" \
             --notes "Separate compact offline Android app. No live profit; Smart Closing Audit; morning Reference; second-drawer note counting; Android 8.1+."
           cat > LATEST-ANDROID-RELEASE.txt <<STATUS
+          STATUS=SUCCESS
           TM Mobile Shop Preview ${GITHUB_RUN_NUMBER}
           TAG=${TAG}
           APK=https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/TM-Mobile-Shop-Preview.apk
           SHA256=${SHA}
           RUN_ID=${GITHUB_RUN_ID}
           STATUS
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add LATEST-ANDROID-RELEASE.txt
           git commit -m "Update Android preview release status [skip ci]"
+          git push origin HEAD:android-tm-mobile-shop
+
+      - name: Record failure status
+        if: failure()
+        run: |
+          {
+            echo "STATUS=FAILED"
+            echo "RUN_NUMBER=${GITHUB_RUN_NUMBER}"
+            echo "RUN_ID=${GITHUB_RUN_ID}"
+            echo "--- BUILD LOG TAIL ---"
+            if [ -f /tmp/android-build.log ]; then tail -n 80 /tmp/android-build.log; else echo "Build failed before Gradle log was created."; fi
+          } > LATEST-ANDROID-RELEASE.txt
+          git add LATEST-ANDROID-RELEASE.txt
+          git commit -m "Record Android build failure [skip ci]" || true
           git push origin HEAD:android-tm-mobile-shop
