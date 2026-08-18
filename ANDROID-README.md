@@ -16,6 +16,10 @@ A separate, offline Android accounting app for TM Mobile Shop. It is intentional
 - Previous day's closing Computer amount moves into the next day's Drawer opening, and the next day's Computer starts at 0.
 - Total profit = shop profit + current day's Computer amount.
 
+## Current Android accounting regression
+- 18-08-2026 test case: shop profit 3,894; Computer income 2,300; total profit 6,194.
+- Next-day rule remains: previous Computer amount joins Drawer; next-day Computer starts at 0.
+
 ## Accounts
 - دوسرے گلے کی کیش
 - کمپیوٹر
