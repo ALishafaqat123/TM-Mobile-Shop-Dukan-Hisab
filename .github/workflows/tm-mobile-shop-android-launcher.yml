@@ -1,0 +1,85 @@
+name: TM Mobile Shop Android Launcher
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ compiled-app-dev ]
+    paths:
+      - '.github/workflows/tm-mobile-shop-android-launcher.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Android app branch
+        uses: actions/checkout@v4
+        with:
+          ref: android-tm-mobile-shop
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Restore stable signing key
+        run: base64 -d ci/tm-mobile-shop.jks.b64 > ci/tm-mobile-shop.jks
+
+      - name: Validate JavaScript syntax
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('app/src/main/assets/index.html').read_text()
+          m=re.search(r'<script>(.*)</script>',p,re.S)
+          Path('/tmp/tm-mobile-shop.js').write_text(m.group(1))
+          PY
+          node --check /tmp/tm-mobile-shop.js
+
+      - name: Build release APK
+        run: gradle :app:assembleRelease --stacktrace
+
+      - name: Prepare release files
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk TM-Mobile-Shop-Preview.apk
+          sha256sum TM-Mobile-Shop-Preview.apk > TM-Mobile-Shop-Preview-SHA256.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TM-Mobile-Shop-Preview
+          path: |
+            TM-Mobile-Shop-Preview.apk
+            TM-Mobile-Shop-Preview-SHA256.txt
+
+      - name: Publish preview release and status
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="tm-mobile-shop-preview-${GITHUB_RUN_NUMBER}"
+          SHA="$(cut -d' ' -f1 TM-Mobile-Shop-Preview-SHA256.txt)"
+          gh release create "$TAG" TM-Mobile-Shop-Preview.apk TM-Mobile-Shop-Preview-SHA256.txt \
+            --target android-tm-mobile-shop \
+            --prerelease \
+            --title "TM Mobile Shop Preview ${GITHUB_RUN_NUMBER}" \
+            --notes "Separate compact offline Android app. No live profit; Smart Closing Audit; morning Reference; second-drawer note counting; Android 8.1+."
+          cat > LATEST-ANDROID-RELEASE.txt <<STATUS
+          TM Mobile Shop Preview ${GITHUB_RUN_NUMBER}
+          TAG=${TAG}
+          APK=https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/TM-Mobile-Shop-Preview.apk
+          SHA256=${SHA}
+          RUN_ID=${GITHUB_RUN_ID}
+          STATUS
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add LATEST-ANDROID-RELEASE.txt
+          git commit -m "Update Android preview release status [skip ci]"
+          git push origin HEAD:android-tm-mobile-shop
