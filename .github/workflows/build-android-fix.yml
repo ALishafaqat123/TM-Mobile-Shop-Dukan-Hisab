@@ -1,3 +1,4 @@
+# Dedicated default-branch trigger for the Android-only accounting fix.
 name: Build TM Mobile Shop Android Fix
 
 on:
