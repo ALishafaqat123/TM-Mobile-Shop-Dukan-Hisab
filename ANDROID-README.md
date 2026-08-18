@@ -1,17 +1,20 @@
 # TM Mobile Shop — Android
 
-Preview 1 foundation.
+Preview foundation.
 
 A separate, offline Android accounting app for TM Mobile Shop. It is intentionally independent of the Windows Dukan Hisab software.
 
 ## Core rules
-- No live profit during the day.
-- Profit is calculated only at Closing.
+- No transaction-based live profit during the day; the Home closing amounts show the result instantly once all required values are entered.
+- Final profit is saved at Closing.
 - Manual Reference can reset a day's opening baseline without changing old history.
 - Drawer note counting is only for "دوسرے گلے کی کیش".
 - Smart Closing Audit runs only at Closing, not on every entry.
 - Smart audit compares calculated vs actual balances and tries x10 / ÷10 alternatives to flag likely missing/extra zero mistakes.
 - No floating Messenger-style bubble.
+- Computer is treated as the current day's computer income for profit presentation, not as a wallet whose profit is closing minus opening.
+- Previous day's closing Computer amount moves into the next day's Drawer opening, and the next day's Computer starts at 0.
+- Total profit = shop profit + current day's Computer amount.
 
 ## Accounts
 - دوسرے گلے کی کیش
