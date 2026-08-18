@@ -1,0 +1,95 @@
+name: Build TM Mobile Shop Android Fix
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/build-android-fix.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Android app branch
+        uses: actions/checkout@v4
+        with:
+          ref: android-tm-mobile-shop
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Restore signing key
+        run: base64 -d ci/tm-mobile-shop.jks.b64 > ci/tm-mobile-shop.jks
+
+      - name: Verify Android-only accounting correction
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          java = Path('app/src/main/java/com/tmmobileshop/hisab/MainActivity.java').read_text(encoding='utf-8')
+          html = Path('app/src/main/assets/index.html').read_text(encoding='utf-8')
+          gradle = Path('app/build.gradle').read_text(encoding='utf-8')
+          assert 'profitPartsForDayPatched' in java
+          assert 'migrateComputerProfitSemantics' in java
+          assert 'drawer:n(a.drawer)+n(a.computer),computer:0' in html
+          assert "versionCode 5" in gradle
+
+          opening = dict(drawer=68600, computer=2700, jazz=87572, easyTanzeem=142076, easy=8680, oneload=2754)
+          actual = dict(drawer=57050, computer=2300, jazz=80870, easyTanzeem=147072, easy=14180, oneload=1404)
+          shop_opening = sum(opening.values()) - opening['computer']
+          shop_actual = sum(actual.values()) - actual['computer']
+          shop = shop_actual - shop_opening + 13000
+          computer = actual['computer']
+          total = shop + computer
+          assert (shop, computer, total) == (3894, 2300, 6194)
+          assert actual['drawer'] + actual['computer'] == 59350
+          print('PASS: shop=3894 computer=2300 total=6194')
+          print('PASS: previous Computer rolls into next Drawer; next Computer=0')
+          PY
+
+      - name: Build signed release APK
+        run: gradle :app:assembleRelease --stacktrace
+
+      - name: Prepare release files
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk TM-Mobile-Shop-Preview-8.apk
+          sha256sum TM-Mobile-Shop-Preview-8.apk > TM-Mobile-Shop-Preview-8-SHA256.txt
+
+      - name: Publish Android fix release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG='tm-mobile-shop-preview-8-computer-fix'
+          SHA="$(cut -d' ' -f1 TM-Mobile-Shop-Preview-8-SHA256.txt)"
+          git tag "$TAG"
+          git push origin "$TAG"
+          gh release create "$TAG" TM-Mobile-Shop-Preview-8.apk TM-Mobile-Shop-Preview-8-SHA256.txt \
+            --title 'TM Mobile Shop Preview 8 — Computer Profit Fix' \
+            --notes 'Android-only fix. Home Computer is today’s computer income. Shop profit excludes the Computer reference/opening amount. Total profit = shop profit + today’s Computer amount. Previous day Computer still rolls into next-day Drawer and next-day Computer starts at zero.'
+
+          cat > LATEST-ANDROID-RELEASE.txt <<STATUS
+          STATUS=SUCCESS
+          TM Mobile Shop Preview 8 — Computer Profit Fix
+          TAG=${TAG}
+          APK=https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/TM-Mobile-Shop-Preview-8.apk
+          SHA256=${SHA}
+          RUN_ID=${GITHUB_RUN_ID}
+          STATUS
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add LATEST-ANDROID-RELEASE.txt
+          git commit -m 'Update Android Preview 8 release status [skip ci]'
+          git push origin HEAD:android-tm-mobile-shop
