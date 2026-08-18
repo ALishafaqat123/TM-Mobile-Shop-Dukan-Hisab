@@ -1,0 +1,38 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.tmmobileshop.hisab'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.tmmobileshop.hisab'
+        minSdk 27
+        targetSdk 35
+        versionCode 1
+        versionName '1.0-preview1'
+    }
+
+    signingConfigs {
+        release {
+            storeFile file('../ci/tm-mobile-shop.jks')
+            storePassword 'TMMobileShop2026'
+            keyAlias 'tm-mobile-shop'
+            keyPassword 'TMMobileShop2026'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            shrinkResources false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
