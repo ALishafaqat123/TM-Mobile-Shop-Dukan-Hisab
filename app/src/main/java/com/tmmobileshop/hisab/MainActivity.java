@@ -24,7 +24,7 @@ public class MainActivity extends Activity {
         prefs = getSharedPreferences("tm_mobile_shop_store", MODE_PRIVATE);
 
         webView = new WebView(this);
-        webView.setBackgroundColor(0xfff4f6f5);
+        webView.setBackgroundColor(0xffeffbf8);
         WebSettings s = webView.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
