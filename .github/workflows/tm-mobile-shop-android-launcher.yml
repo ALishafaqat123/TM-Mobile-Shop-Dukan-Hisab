@@ -55,6 +55,8 @@ jobs:
           import re
           p=Path('app/src/main/assets/index.html').read_text()
           m=re.search(r'<script>(.*)</script>',p,re.S)
+          if not m:
+              raise SystemExit('script block not found')
           Path('/tmp/tm-mobile-shop.js').write_text(m.group(1))
           PY
           node --check /tmp/tm-mobile-shop.js
@@ -66,13 +68,7 @@ jobs:
         run: |
           cp app/build/outputs/apk/release/app-release.apk TM-Mobile-Shop-Preview.apk
           sha256sum TM-Mobile-Shop-Preview.apk > TM-Mobile-Shop-Preview-SHA256.txt
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: TM-Mobile-Shop-Preview
-          path: |
-            TM-Mobile-Shop-Preview.apk
-            TM-Mobile-Shop-Preview-SHA256.txt
+          ls -lh TM-Mobile-Shop-Preview.apk TM-Mobile-Shop-Preview-SHA256.txt
 
       - name: Publish preview release and success status
         env:
