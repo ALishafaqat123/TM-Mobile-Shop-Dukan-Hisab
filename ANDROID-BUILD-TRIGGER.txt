@@ -1,0 +1,3 @@
+Trigger Android Preview 8 verification build on 2026-08-19.
+Retry after adding the missing TM launcher icon resource.
+No Windows application code is changed.
