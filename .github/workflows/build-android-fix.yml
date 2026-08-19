@@ -72,6 +72,7 @@ jobs:
           sha256sum TM-Mobile-Shop-Preview-8.apk > TM-Mobile-Shop-Preview-8-SHA256.txt
 
       - name: Upload APK artifact
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: TM-Mobile-Shop-Preview-8
