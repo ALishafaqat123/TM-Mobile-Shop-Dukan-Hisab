@@ -179,7 +179,15 @@ public static class AccountingEngine
             Jazz = Money(day.Closing.Jazz),
             Oneload = Money(day.Closing.Oneload)
         };
-        var profit = actual.Total - day.Opening.Total + tz.In - tz.Out;
+
+        // Computer is today's computer income. A non-zero Computer value in the
+        // morning/manual reference is an opening asset from an earlier day, not a
+        // baseline to subtract from today's income. Compare shop balances without
+        // Computer, then add today's closing Computer income once.
+        var shopProfit = (actual.Total - actual.Computer)
+                       - (day.Opening.Total - day.Opening.Computer)
+                       + tz.In - tz.Out;
+        var profit = shopProfit + actual.Computer;
         return new ClosingSummary(true, actual, actual.Total, profit, book, book.Total, day.Opening.Total, tz, actual.Total - book.Total);
     }
 
@@ -211,7 +219,9 @@ public static class AccountingEngine
             if (closing.Complete && closing.Actual is not null)
             {
                 total = closing.ActualProfit ?? 0m;
-                computer = closing.Actual.Computer - day.Opening.Computer;
+                // At closing, Computer is today's income itself; never subtract
+                // a Computer amount stored in the morning/manual reference.
+                computer = closing.Actual.Computer;
             }
         }
 
