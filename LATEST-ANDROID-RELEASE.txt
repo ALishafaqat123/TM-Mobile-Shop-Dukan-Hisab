@@ -1,6 +1,7 @@
 STATUS=SUCCESS
-TM Mobile Shop Preview 8 — Computer Profit Fix
-TAG=tm-mobile-shop-preview-8-computer-fix
-APK=https://github.com/ALishafaqat123/TM-Mobile-Shop-Dukan-Hisab/releases/download/tm-mobile-shop-preview-8-computer-fix/TM-Mobile-Shop-Preview-8.apk
-SHA256=320e105c6e1c0401638d7aa600aeaec69c3de71d643b96d81187d86096fa197a
-RUN_ID=32221111706
+TM Mobile Shop Preview 9 — Full Assets + Computer Profit Fix
+TAG=tm-mobile-shop-preview-9-full-assets
+APK=https://github.com/ALishafaqat123/TM-Mobile-Shop-Dukan-Hisab/releases/download/tm-mobile-shop-preview-9-full-assets/TM-Mobile-Shop-Preview-9.apk
+SHA256=0832ad0fec994dc46d46cab031c9247b5d03c6c5d82e4550b6d2a34eb7f8f9ea
+SIZE=6.6M
+RUN_ID=32221697963
