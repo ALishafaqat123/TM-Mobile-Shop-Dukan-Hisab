@@ -6,6 +6,8 @@ on:
     branches: [ main ]
     paths:
       - '.github/workflows/build-android-fix.yml'
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
@@ -68,7 +70,16 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk TM-Mobile-Shop-Preview-8.apk
           sha256sum TM-Mobile-Shop-Preview-8.apk > TM-Mobile-Shop-Preview-8-SHA256.txt
 
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TM-Mobile-Shop-Preview-8
+          path: |
+            TM-Mobile-Shop-Preview-8.apk
+            TM-Mobile-Shop-Preview-8-SHA256.txt
+
       - name: Publish Android fix release
+        if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
