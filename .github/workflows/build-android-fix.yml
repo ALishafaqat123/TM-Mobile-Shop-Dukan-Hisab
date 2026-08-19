@@ -1,4 +1,5 @@
 # Dedicated default-branch trigger for the Android-only accounting fix.
+# Retry after adding the missing TM launcher icon resource.
 name: Build TM Mobile Shop Android Fix
 
 on:
