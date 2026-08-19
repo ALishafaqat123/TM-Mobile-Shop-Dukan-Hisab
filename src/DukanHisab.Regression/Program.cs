@@ -67,6 +67,48 @@ static DayRecord NewDay() => new()
     Eq(17000, next.Total, "extended rollover total");
 }
 {
+    // Exact 18-08-2026 manual-reference case that exposed the Computer bug.
+    // Morning Computer 2,700 is an opening asset; closing Computer 2,300 is
+    // today's income and must not be treated as a -400 loss.
+    var d = new DayRecord
+    {
+        Date = "2026-08-18",
+        Opening = new AccountBalances
+        {
+            Drawer = 68600,
+            Computer = 2700,
+            Jazz = 87572,
+            Easy = 8680,
+            EasyTanzeem = 142076,
+            Oneload = 2754
+        },
+        Closing = new ClosingData
+        {
+            Drawer = "57050",
+            Computer = "2300",
+            Jazz = "80870",
+            Easy = "14180",
+            EasyTanzeem = "147072",
+            Oneload = "1404"
+        },
+        Transactions = []
+    };
+
+    d.Transactions.Add(AccountingEngine.BuildTanzeem("in", 10000, Accounts.Jazz, commissionOverride: "0"));
+    d.Transactions.Add(AccountingEngine.BuildTanzeem("in", 3000, Accounts.Drawer, commissionOverride: "0"));
+
+    var closing = AccountingEngine.GetClosingSummary(d);
+    var sources = AccountingEngine.ProfitSourceSummary(d, true);
+    Eq(6194, closing.ActualProfit ?? 0m, "manual reference closing total profit");
+    Eq(2300, sources.Computer, "closing computer is today's income");
+    Eq(3894, sources.ShopWithoutComputer, "shop profit excludes opening computer");
+    Eq(6194, sources.Total, "shop plus computer total profit");
+
+    var next = AccountingEngine.OpeningFromPrevious(d, true);
+    Eq(59350, next.Drawer, "next-day drawer receives computer income once");
+    Eq(0, next.Computer, "next-day computer resets after rollover");
+}
+{
     Eq(10, AccountingEngine.AutoCommission(Accounts.Jazz, "out", 780, Accounts.Drawer), "send 780");
     Eq(20, AccountingEngine.AutoCommission(Accounts.Jazz, "out", 1500, Accounts.Drawer), "send 1500");
     Eq(20, AccountingEngine.AutoCommission(Accounts.Easy, "in", 500, Accounts.Drawer), "withdraw 500");
