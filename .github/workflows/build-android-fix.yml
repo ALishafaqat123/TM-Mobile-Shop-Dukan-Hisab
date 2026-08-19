@@ -1,5 +1,5 @@
-# Dedicated default-branch trigger for the Android-only accounting fix.
-# Retry after adding the missing TM launcher icon resource.
+# Dedicated Android-only build for the corrected accounting app.
+# This build restores the full Jameel Noori font asset and TM book-and-pen launcher icon.
 name: Build TM Mobile Shop Android Fix
 
 on:
@@ -7,8 +7,6 @@ on:
     branches: [ main ]
     paths:
       - '.github/workflows/build-android-fix.yml'
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
 
 permissions:
@@ -38,7 +36,24 @@ jobs:
       - name: Restore signing key
         run: base64 -d ci/tm-mobile-shop.jks.b64 > ci/tm-mobile-shop.jks
 
-      - name: Verify Android-only accounting correction
+      - name: Restore TM book-and-pen launcher icon
+        run: |
+          mkdir -p app/src/main/res/drawable-nodpi
+          base64 -d ci/tm_app_icon_96.png.b64 > app/src/main/res/drawable-nodpi/tm_app_icon.png
+          test -s app/src/main/res/drawable-nodpi/tm_app_icon.png
+          grep -q 'android:icon="@drawable/tm_app_icon"' app/src/main/AndroidManifest.xml
+          grep -q 'android:roundIcon="@drawable/tm_app_icon"' app/src/main/AndroidManifest.xml
+          file app/src/main/res/drawable-nodpi/tm_app_icon.png
+
+      - name: Restore Jameel Noori Nastaleeq font
+        run: |
+          curl -L --fail --retry 3 \
+            'https://raw.githubusercontent.com/farid-786/fonts/ea4118d1d5d22cbdb8c628e6fc990f55b1c1148c/jameel-noori-nastaleeq/JameelNooriNastaleeq-Regular.woff2' \
+            -o app/src/main/assets/JameelNooriNastaleeq.woff2
+          test -s app/src/main/assets/JameelNooriNastaleeq.woff2
+          ls -lh app/src/main/assets/JameelNooriNastaleeq.woff2
+
+      - name: Verify Android accounting correction and full assets
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -48,7 +63,9 @@ jobs:
           assert 'profitPartsForDayPatched' in java
           assert 'migrateComputerProfitSemantics' in java
           assert 'drawer:n(a.drawer)+n(a.computer),computer:0' in html
-          assert "versionCode 5" in gradle
+          assert "versionCode 6" in gradle
+          assert Path('app/src/main/assets/JameelNooriNastaleeq.woff2').stat().st_size > 1_000_000
+          assert Path('app/src/main/res/drawable-nodpi/tm_app_icon.png').stat().st_size > 1_000
 
           opening = dict(drawer=68600, computer=2700, jazz=87572, easyTanzeem=142076, easy=8680, oneload=2754)
           actual = dict(drawer=57050, computer=2300, jazz=80870, easyTanzeem=147072, easy=14180, oneload=1404)
@@ -61,49 +78,60 @@ jobs:
           assert actual['drawer'] + actual['computer'] == 59350
           print('PASS: shop=3894 computer=2300 total=6194')
           print('PASS: previous Computer rolls into next Drawer; next Computer=0')
+          print('PASS: full Jameel font and TM icon assets restored')
           PY
 
       - name: Build signed release APK
         run: gradle :app:assembleRelease --stacktrace
 
-      - name: Prepare release files
+      - name: Prepare and size-check release files
         run: |
-          cp app/build/outputs/apk/release/app-release.apk TM-Mobile-Shop-Preview-8.apk
-          sha256sum TM-Mobile-Shop-Preview-8.apk > TM-Mobile-Shop-Preview-8-SHA256.txt
+          cp app/build/outputs/apk/release/app-release.apk TM-Mobile-Shop-Preview-9.apk
+          BYTES=$(stat -c%s TM-Mobile-Shop-Preview-9.apk)
+          echo "APK_BYTES=$BYTES"
+          if [ "$BYTES" -lt 1000000 ]; then
+            echo "APK unexpectedly small; refusing to publish a stripped build."
+            exit 1
+          fi
+          sha256sum TM-Mobile-Shop-Preview-9.apk > TM-Mobile-Shop-Preview-9-SHA256.txt
+          ls -lh TM-Mobile-Shop-Preview-9.apk TM-Mobile-Shop-Preview-9-SHA256.txt
 
       - name: Upload APK artifact
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: TM-Mobile-Shop-Preview-8
+          name: TM-Mobile-Shop-Preview-9
           path: |
-            TM-Mobile-Shop-Preview-8.apk
-            TM-Mobile-Shop-Preview-8-SHA256.txt
+            TM-Mobile-Shop-Preview-9.apk
+            TM-Mobile-Shop-Preview-9-SHA256.txt
 
-      - name: Publish Android fix release
-        if: github.event_name != 'pull_request'
+      - name: Publish full Android release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG='tm-mobile-shop-preview-8-computer-fix'
-          SHA="$(cut -d' ' -f1 TM-Mobile-Shop-Preview-8-SHA256.txt)"
+          TAG='tm-mobile-shop-preview-9-full-assets'
+          SHA="$(cut -d' ' -f1 TM-Mobile-Shop-Preview-9-SHA256.txt)"
+          SIZE="$(du -h TM-Mobile-Shop-Preview-9.apk | cut -f1)"
           git tag "$TAG"
           git push origin "$TAG"
-          gh release create "$TAG" TM-Mobile-Shop-Preview-8.apk TM-Mobile-Shop-Preview-8-SHA256.txt \
-            --title 'TM Mobile Shop Preview 8 — Computer Profit Fix' \
-            --notes 'Android-only fix. Home Computer is today’s computer income. Shop profit excludes the Computer reference/opening amount. Total profit = shop profit + today’s Computer amount. Previous day Computer still rolls into next-day Drawer and next-day Computer starts at zero.'
+          gh release create "$TAG" TM-Mobile-Shop-Preview-9.apk TM-Mobile-Shop-Preview-9-SHA256.txt \
+            --target android-tm-mobile-shop \
+            --prerelease \
+            --title 'TM Mobile Shop Preview 9 — Full Assets + Computer Profit Fix' \
+            --notes "Android-only corrected build. Restores the full Jameel Noori Nastaleeq font and TM book-and-pen launcher icon. Computer is today's computer income; shop profit excludes the old Computer reference; total profit = shop profit + today's Computer amount. Previous-day Computer rolls into next-day Drawer and next-day Computer starts at zero."
 
           cat > LATEST-ANDROID-RELEASE.txt <<STATUS
           STATUS=SUCCESS
-          TM Mobile Shop Preview 8 — Computer Profit Fix
+          TM Mobile Shop Preview 9 — Full Assets + Computer Profit Fix
           TAG=${TAG}
-          APK=https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/TM-Mobile-Shop-Preview-8.apk
+          APK=https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/TM-Mobile-Shop-Preview-9.apk
           SHA256=${SHA}
+          SIZE=${SIZE}
           RUN_ID=${GITHUB_RUN_ID}
           STATUS
 
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add LATEST-ANDROID-RELEASE.txt
-          git commit -m 'Update Android Preview 8 release status [skip ci]'
+          git commit -m 'Update Android Preview 9 full release status [skip ci]'
           git push origin HEAD:android-tm-mobile-shop
