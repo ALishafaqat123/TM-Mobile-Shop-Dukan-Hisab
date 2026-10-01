@@ -1,7 +1,9 @@
 STATUS=SUCCESS
-TM Mobile Shop Preview 9 — Full Assets + Computer Profit Fix
-TAG=tm-mobile-shop-preview-9-full-assets
-APK=https://github.com/ALishafaqat123/TM-Mobile-Shop-Dukan-Hisab/releases/download/tm-mobile-shop-preview-9-full-assets/TM-Mobile-Shop-Preview-9.apk
-SHA256=0832ad0fec994dc46d46cab031c9247b5d03c6c5d82e4550b6d2a34eb7f8f9ea
+TM Mobile Shop Preview 10 — Share Reports
+TAG=tm-mobile-shop-preview-10-share-reports
+APK=https://github.com/ALishafaqat123/TM-Mobile-Shop-Dukan-Hisab/releases/download/tm-mobile-shop-preview-10-share-reports/TM-Mobile-Shop-Preview-10.apk
+SHA256=ca9c3a9c60aff2dbb9f4dcc8eba44f16d79adbe604f03e93587a5cc19ae88cae
 SIZE=6.6M
-RUN_ID=32221697963
+RUN_ID=36830536823
+BRANCH=android-preview-10-share-reports
+DATA_POLICY=in-place update; existing state_json preserved; pre-preview10 snapshot retained
