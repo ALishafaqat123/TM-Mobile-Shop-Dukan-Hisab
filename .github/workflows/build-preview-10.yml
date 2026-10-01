@@ -1,6 +1,10 @@
 name: Build TM Mobile Shop Preview 10 Private APK
 
 on:
+  push:
+    branches: [ android-preview-10-share-reports ]
+    paths:
+      - 'app/**'
   workflow_dispatch:
 
 permissions:
@@ -45,8 +49,8 @@ jobs:
 
       - name: Set private test APK version
         run: |
-          sed -i "s/versionCode 8/versionCode 9/" app/build.gradle
-          sed -i "s/versionName '1.7-preview-10-share-reports'/versionName '1.8-private-reconciliation'/" app/build.gradle
+          sed -i "s/versionCode 8/versionCode 10/" app/build.gradle
+          sed -i "s/versionName '1.7-preview-10-share-reports'/versionName '1.9-private-report-order'/" app/build.gradle
 
       - name: Verify accounting, sharing, and data safety
         run: |
@@ -59,8 +63,8 @@ jobs:
           manifest = Path('app/src/main/AndroidManifest.xml').read_text(encoding='utf-8')
 
           assert "applicationId 'com.tmmobileshop.hisab'" in gradle
-          assert "versionCode 9" in gradle
-          assert "versionName '1.8-private-reconciliation'" in gradle
+          assert "versionCode 10" in gradle
+          assert "versionName '1.9-private-report-order'" in gradle
           assert 'android:label="TM Mobile Shop"' in manifest
 
           assert 'getSharedPreferences("tm_mobile_shop_store", MODE_PRIVATE)' in java
@@ -91,6 +95,11 @@ jobs:
           assert '3) دکان میں باہر سے آئے پیسے' in html
           assert '4) دکان سے باہر گئے پیسے' in html
           assert 'حساب تصدیق شدہ' in html
+          assert '*اختتامی کیش / بیلنس*' in html
+          assert '*منافع*' in html
+          assert '*حساب کیسے بنا*' in html
+          assert 'تفصیل :۔' in html
+          assert '۔۔۔۔۔۔۔ ختم شد ۔۔۔' in html
 
           # Regression checks using the real 28/29/30 totals discussed for the shop.
           def patched_profit(opening_total, actual_total, actual_computer, shop_to, to_shop):
