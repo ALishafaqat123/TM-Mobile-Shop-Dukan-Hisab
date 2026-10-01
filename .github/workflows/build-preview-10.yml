@@ -1,6 +1,10 @@
 name: Build TM Mobile Shop Preview 10 Private APK
 
 on:
+  push:
+    branches: [ android-preview-10-share-reports ]
+    paths:
+      - 'app/**'
   workflow_dispatch:
 
 permissions:
@@ -54,13 +58,14 @@ jobs:
           manifest = Path('app/src/main/AndroidManifest.xml').read_text(encoding='utf-8')
 
           assert "applicationId 'com.tmmobileshop.hisab'" in gradle
-          assert "versionCode 8" in gradle
-          assert "versionName '1.7-preview-10-share-reports'" in gradle
+          assert "versionCode 9" in gradle
+          assert "versionName '1.8-private-reconciliation'" in gradle
           assert 'android:label="TM Mobile Shop"' in manifest
 
           assert 'getSharedPreferences("tm_mobile_shop_store", MODE_PRIVATE)' in java
           assert '"state_json"' in java
           assert 'state_json_backup_pre_preview10' in java
+          assert 'state_json_backup_pre_reconcile' in java
           assert 'profitPartsForDayPatched' in java
           assert 'migrateComputerProfitSemantics' in java
 
@@ -73,6 +78,18 @@ jobs:
           assert '*1) دکان میں پیسے آئے (+)*' in html
           assert '*2) دکان سے پیسے گئے (−)*' in html
           assert 'ایزی پیسہ شفاقت' in html
+          assert "const PARTIES=" in html
+          assert 'تنظم منیر' in html
+          assert 'پیسے کس اکاؤنٹ میں آئے؟' in html
+          assert 'پیسے کس اکاؤنٹ سے گئے؟' in html
+          assert 'function reconciliationNumbers' in html
+          assert 'function openReconcile' in html
+          assert 'function saveReconciliation' in html
+          assert '1) کل کا کل موجود' in html
+          assert '2) آج کا کل موجود' in html
+          assert '3) دکان میں باہر سے آئے پیسے' in html
+          assert '4) دکان سے باہر گئے پیسے' in html
+          assert 'حساب تصدیق شدہ' in html
 
           # Regression checks using the real 28/29/30 totals discussed for the shop.
           def patched_profit(opening_total, actual_total, actual_computer, shop_to, to_shop):
@@ -81,11 +98,13 @@ jobs:
               shop = shop_actual - shop_opening + shop_to - to_shop
               return shop + actual_computer
 
+          p28 = patched_profit(187527, 181127, 2100, 13301, 500)
           p29 = patched_profit(181127, 184175, 2200, 53001, 50500)
           p30 = patched_profit(184175, 140246, 2400, 116000, 68000)
+          assert p28 == 6401, p28
           assert p29 == 5549, p29
           assert p30 == 4071, p30
-          assert p29 + p30 == 9620
+          assert p28 + p29 + p30 == 16021
 
           assert Path('app/src/main/assets/JameelNooriNastaleeq.woff2').stat().st_size > 1_000_000
           assert Path('app/src/main/res/drawable-nodpi/tm_app_icon.png').stat().st_size > 1_000
@@ -93,7 +112,15 @@ jobs:
           print('PASS: package/storage identity preserved for in-place update')
           print('PASS: pre-Preview-10 state snapshot safeguard present')
           print('PASS: single-day + multi-day sharing UI/functions present')
-          print('PASS: day 29 profit=5549, day 30 profit=4071, combined=9620')
+          # Syntax-check the inline application JavaScript.
+          script = html.split('<script>', 1)[1].split('</script>', 1)[0]
+          Path('/tmp/tm-mobile-shop-inline.js').write_text(script, encoding='utf-8')
+          import subprocess
+          subprocess.run(['node', '--check', '/tmp/tm-mobile-shop-inline.js'], check=True)
+
+          print('PASS: party-aware incoming/outgoing reporting + reconciliation UI present')
+          print('PASS: inline JavaScript syntax check')
+          print('PASS: day 28 profit=6401, day 29 profit=5549, day 30 profit=4071')
           PY
 
       - name: Build signed release APK
