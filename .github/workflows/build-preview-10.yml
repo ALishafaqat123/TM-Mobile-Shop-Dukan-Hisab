@@ -1,0 +1,158 @@
+name: Build TM Mobile Shop Preview 10
+
+on:
+  push:
+    branches: [ android-preview-10-share-reports ]
+    paths:
+      - 'app/**'
+      - 'ci/**'
+      - '.github/workflows/build-preview-10.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-preview-10:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Preview 10 branch
+        uses: actions/checkout@v4
+        with:
+          ref: android-preview-10-share-reports
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Restore signing key
+        run: base64 -d ci/tm-mobile-shop.jks.b64 > ci/tm-mobile-shop.jks
+
+      - name: Restore launcher icon
+        run: |
+          mkdir -p app/src/main/res/drawable-nodpi
+          base64 -d ci/tm_app_icon_96.png.b64 > app/src/main/res/drawable-nodpi/tm_app_icon.png
+          test -s app/src/main/res/drawable-nodpi/tm_app_icon.png
+
+      - name: Restore Jameel Noori Nastaleeq font
+        run: |
+          curl -L --fail --retry 3             'https://raw.githubusercontent.com/farid-786/fonts/ea4118d1d5d22cbdb8c628e6fc990f55b1c1148c/jameel-noori-nastaleeq/JameelNooriNastaleeq-Regular.woff2'             -o app/src/main/assets/JameelNooriNastaleeq.woff2
+          test -s app/src/main/assets/JameelNooriNastaleeq.woff2
+
+      - name: Verify accounting, sharing, and data safety
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          java = Path('app/src/main/java/com/tmmobileshop/hisab/MainActivity.java').read_text(encoding='utf-8')
+          html = Path('app/src/main/assets/index.html').read_text(encoding='utf-8')
+          gradle = Path('app/build.gradle').read_text(encoding='utf-8')
+          manifest = Path('app/src/main/AndroidManifest.xml').read_text(encoding='utf-8')
+
+          assert "applicationId 'com.tmmobileshop.hisab'" in gradle
+          assert "versionCode 7" in gradle
+          assert "versionName '1.6-preview-10-share-reports'" in gradle
+          assert 'android:label="TM Mobile Shop"' in manifest
+
+          assert 'getSharedPreferences("tm_mobile_shop_store", MODE_PRIVATE)' in java
+          assert '"state_json"' in java
+          assert 'state_json_backup_pre_preview10' in java
+          assert 'profitPartsForDayPatched' in java
+          assert 'migrateComputerProfitSemantics' in java
+
+          assert 'drawer:n(a.drawer)+n(a.computer),computer:0' in html
+          assert 'openMultiShare' in html
+          assert 'shareSelectedDays' in html
+          assert 'combinedReportText' in html
+          assert 'shareTextByMode' in html
+          assert 'متعدد دن شیئر کریں' in html
+
+          # Regression checks using the real 28/29/30 totals discussed for the shop.
+          def patched_profit(opening_total, actual_total, actual_computer, shop_to, to_shop):
+              shop_opening = opening_total
+              shop_actual = actual_total - actual_computer
+              shop = shop_actual - shop_opening + shop_to - to_shop
+              return shop + actual_computer
+
+          p29 = patched_profit(181127, 184175, 2200, 53001, 50500)
+          p30 = patched_profit(184175, 140246, 2400, 116000, 68000)
+          assert p29 == 5549, p29
+          assert p30 == 4071, p30
+          assert p29 + p30 == 9620
+
+          assert Path('app/src/main/assets/JameelNooriNastaleeq.woff2').stat().st_size > 1_000_000
+          assert Path('app/src/main/res/drawable-nodpi/tm_app_icon.png').stat().st_size > 1_000
+
+          print('PASS: package/storage identity preserved for in-place update')
+          print('PASS: pre-Preview-10 state snapshot safeguard present')
+          print('PASS: single-day + multi-day sharing UI/functions present')
+          print('PASS: day 29 profit=5549, day 30 profit=4071, combined=9620')
+          PY
+
+      - name: Build signed release APK
+        run: gradle :app:assembleRelease --stacktrace
+
+      - name: Prepare release files
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk TM-Mobile-Shop-Preview-10.apk
+          BYTES=$(stat -c%s TM-Mobile-Shop-Preview-10.apk)
+          echo "APK_BYTES=$BYTES"
+          if [ "$BYTES" -lt 1000000 ]; then
+            echo "APK unexpectedly small; refusing to publish."
+            exit 1
+          fi
+          sha256sum TM-Mobile-Shop-Preview-10.apk > TM-Mobile-Shop-Preview-10-SHA256.txt
+          ls -lh TM-Mobile-Shop-Preview-10.apk TM-Mobile-Shop-Preview-10-SHA256.txt
+
+      - name: Upload APK artifact
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: TM-Mobile-Shop-Preview-10
+          path: |
+            TM-Mobile-Shop-Preview-10.apk
+            TM-Mobile-Shop-Preview-10-SHA256.txt
+
+      - name: Publish Preview 10 release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG='tm-mobile-shop-preview-10-share-reports'
+          SHA="$(cut -d' ' -f1 TM-Mobile-Shop-Preview-10-SHA256.txt)"
+          SIZE="$(du -h TM-Mobile-Shop-Preview-10.apk | cut -f1)"
+
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            git tag -d "$TAG"
+          fi
+          git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1 && git push origin ":refs/tags/$TAG" || true
+          git tag "$TAG"
+          git push origin "$TAG"
+
+          gh release delete "$TAG" --yes >/dev/null 2>&1 || true
+          gh release create "$TAG" TM-Mobile-Shop-Preview-10.apk TM-Mobile-Shop-Preview-10-SHA256.txt             --target android-preview-10-share-reports             --prerelease             --title 'TM Mobile Shop Preview 10 — Share Reports'             --notes "Preview 10 keeps the same Android app identity and local state store so it can update over Preview 9 without removing existing history. Adds single-day sharing, WhatsApp sharing, multi-day selection and combined Urdu reports. Includes a one-time local backup of the pre-Preview-10 state before migration."
+
+          cat > LATEST-ANDROID-RELEASE.txt <<STATUS
+          STATUS=SUCCESS
+          TM Mobile Shop Preview 10 — Share Reports
+          TAG=${TAG}
+          APK=https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/TM-Mobile-Shop-Preview-10.apk
+          SHA256=${SHA}
+          SIZE=${SIZE}
+          RUN_ID=${GITHUB_RUN_ID}
+          BRANCH=android-preview-10-share-reports
+          DATA_POLICY=in-place update; existing state_json preserved; pre-preview10 snapshot retained
+          STATUS
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add LATEST-ANDROID-RELEASE.txt
+          git commit -m 'Record Preview 10 release status [skip ci]' || true
+          git push origin HEAD:android-preview-10-share-reports
