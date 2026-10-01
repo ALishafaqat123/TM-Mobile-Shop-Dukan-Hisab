@@ -129,6 +129,19 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         prefs = getSharedPreferences("tm_mobile_shop_store", MODE_PRIVATE);
 
+        // Preview 10 data-safety rule:
+        // Keep the exact same package and SharedPreferences store/key so an
+        // in-place Android update continues to use the existing shop history.
+        // Before page migration runs, keep one untouched local snapshot.
+        if (!prefs.contains("state_json_backup_pre_preview10")) {
+            String existingState = prefs.getString("state_json", "");
+            if (existingState != null && !existingState.isEmpty()) {
+                prefs.edit()
+                    .putString("state_json_backup_pre_preview10", existingState)
+                    .apply();
+            }
+        }
+
         webView = new WebView(this);
         webView.setBackgroundColor(0xffeffbf8);
         WebSettings s = webView.getSettings();
