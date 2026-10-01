@@ -1,6 +1,10 @@
 name: Build TM Mobile Shop Preview 10 Private APK
 
 on:
+  push:
+    branches: [ android-preview-10-share-reports ]
+    paths:
+      - 'app/**'
   workflow_dispatch:
 
 permissions:
@@ -54,8 +58,8 @@ jobs:
           manifest = Path('app/src/main/AndroidManifest.xml').read_text(encoding='utf-8')
 
           assert "applicationId 'com.tmmobileshop.hisab'" in gradle
-          assert "versionCode 7" in gradle
-          assert "versionName '1.6-preview-10-share-reports'" in gradle
+          assert "versionCode 8" in gradle
+          assert "versionName '1.7-preview-10-share-reports'" in gradle
           assert 'android:label="TM Mobile Shop"' in manifest
 
           assert 'getSharedPreferences("tm_mobile_shop_store", MODE_PRIVATE)' in java
@@ -70,6 +74,9 @@ jobs:
           assert 'combinedReportText' in html
           assert 'shareTextByMode' in html
           assert 'متعدد دن شیئر کریں' in html
+          assert '*1) دکان میں پیسے آئے (+)*' in html
+          assert '*2) دکان سے پیسے گئے (−)*' in html
+          assert 'ایزی پیسہ شفاقت' in html
 
           # Regression checks using the real 28/29/30 totals discussed for the shop.
           def patched_profit(opening_total, actual_total, actual_computer, shop_to, to_shop):
