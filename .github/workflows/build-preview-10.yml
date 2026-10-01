@@ -47,6 +47,11 @@ jobs:
           curl -L --fail --retry 3             'https://raw.githubusercontent.com/farid-786/fonts/ea4118d1d5d22cbdb8c628e6fc990f55b1c1148c/jameel-noori-nastaleeq/JameelNooriNastaleeq-Regular.woff2'             -o app/src/main/assets/JameelNooriNastaleeq.woff2
           test -s app/src/main/assets/JameelNooriNastaleeq.woff2
 
+      - name: Set private test APK version
+        run: |
+          sed -i "s/versionCode 8/versionCode 9/" app/build.gradle
+          sed -i "s/versionName '1.7-preview-10-share-reports'/versionName '1.8-private-reconciliation'/" app/build.gradle
+
       - name: Verify accounting, sharing, and data safety
         run: |
           python3 - <<'PY'
