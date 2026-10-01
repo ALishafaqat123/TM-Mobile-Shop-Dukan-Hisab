@@ -142,6 +142,17 @@ public class MainActivity extends Activity {
             }
         }
 
+        // One more untouched snapshot before the reconciliation/party update.
+        // This does not replace or rewrite the live state_json.
+        if (!prefs.contains("state_json_backup_pre_reconcile")) {
+            String existingState = prefs.getString("state_json", "");
+            if (existingState != null && !existingState.isEmpty()) {
+                prefs.edit()
+                    .putString("state_json_backup_pre_reconcile", existingState)
+                    .apply();
+            }
+        }
+
         webView = new WebView(this);
         webView.setBackgroundColor(0xffeffbf8);
         WebSettings s = webView.getSettings();
