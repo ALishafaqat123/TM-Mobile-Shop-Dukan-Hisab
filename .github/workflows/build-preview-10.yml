@@ -1,12 +1,6 @@
-name: Build TM Mobile Shop Preview 10
+name: Build TM Mobile Shop Preview 10 Private APK
 
 on:
-  push:
-    branches: [ android-preview-10-share-reports ]
-    paths:
-      - 'app/**'
-      - 'ci/**'
-      - '.github/workflows/build-preview-10.yml'
   workflow_dispatch:
 
 permissions:
@@ -122,39 +116,3 @@ jobs:
           path: |
             TM-Mobile-Shop-Preview-10.apk
             TM-Mobile-Shop-Preview-10-SHA256.txt
-
-      - name: Publish Preview 10 release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          TAG='tm-mobile-shop-preview-10-share-reports'
-          SHA="$(cut -d' ' -f1 TM-Mobile-Shop-Preview-10-SHA256.txt)"
-          SIZE="$(du -h TM-Mobile-Shop-Preview-10.apk | cut -f1)"
-
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            git tag -d "$TAG"
-          fi
-          git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1 && git push origin ":refs/tags/$TAG" || true
-          git tag "$TAG"
-          git push origin "$TAG"
-
-          gh release delete "$TAG" --yes >/dev/null 2>&1 || true
-          gh release create "$TAG" TM-Mobile-Shop-Preview-10.apk TM-Mobile-Shop-Preview-10-SHA256.txt             --target android-preview-10-share-reports             --prerelease             --title 'TM Mobile Shop Preview 10 — Share Reports'             --notes "Preview 10 keeps the same Android app identity and local state store so it can update over Preview 9 without removing existing history. Adds single-day sharing, WhatsApp sharing, multi-day selection and combined Urdu reports. Includes a one-time local backup of the pre-Preview-10 state before migration."
-
-          cat > LATEST-ANDROID-RELEASE.txt <<STATUS
-          STATUS=SUCCESS
-          TM Mobile Shop Preview 10 — Share Reports
-          TAG=${TAG}
-          APK=https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/TM-Mobile-Shop-Preview-10.apk
-          SHA256=${SHA}
-          SIZE=${SIZE}
-          RUN_ID=${GITHUB_RUN_ID}
-          BRANCH=android-preview-10-share-reports
-          DATA_POLICY=in-place update; existing state_json preserved; pre-preview10 snapshot retained
-          STATUS
-
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add LATEST-ANDROID-RELEASE.txt
-          git commit -m 'Record Preview 10 release status [skip ci]' || true
-          git push origin HEAD:android-preview-10-share-reports
