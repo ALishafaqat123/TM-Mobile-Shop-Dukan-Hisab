@@ -153,6 +153,16 @@ public class MainActivity extends Activity {
             }
         }
 
+        // Snapshot before the customer-transaction/live-balance update.
+        if (!prefs.contains("state_json_backup_pre_customer_live")) {
+            String existingState = prefs.getString("state_json", "");
+            if (existingState != null && !existingState.isEmpty()) {
+                prefs.edit()
+                    .putString("state_json_backup_pre_customer_live", existingState)
+                    .apply();
+            }
+        }
+
         webView = new WebView(this);
         webView.setBackgroundColor(0xffeffbf8);
         WebSettings s = webView.getSettings();
