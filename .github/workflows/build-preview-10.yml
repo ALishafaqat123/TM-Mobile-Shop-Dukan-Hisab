@@ -1,10 +1,6 @@
 name: Build TM Mobile Shop Preview 10 Private APK
 
 on:
-  push:
-    branches: [ android-preview-10-share-reports ]
-    paths:
-      - 'app/**'
   workflow_dispatch:
 
 permissions:
