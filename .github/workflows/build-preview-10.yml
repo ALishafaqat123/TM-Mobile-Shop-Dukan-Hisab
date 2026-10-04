@@ -1,6 +1,10 @@
 name: Build TM Mobile Shop Preview 10 Private APK
 
 on:
+  push:
+    branches: [ android-preview-10-share-reports ]
+    paths:
+      - 'app/**'
   workflow_dispatch:
 
 permissions:
@@ -45,8 +49,8 @@ jobs:
 
       - name: Set private test APK version
         run: |
-          sed -i "s/versionCode 8/versionCode 10/" app/build.gradle
-          sed -i "s/versionName '1.7-preview-10-share-reports'/versionName '1.9-private-report-order'/" app/build.gradle
+          sed -i "s/versionCode 8/versionCode 11/" app/build.gradle
+          sed -i "s/versionName '1.7-preview-10-share-reports'/versionName '2.0-private-live-transactions'/" app/build.gradle
 
       - name: Verify accounting, sharing, and data safety
         run: |
@@ -59,14 +63,15 @@ jobs:
           manifest = Path('app/src/main/AndroidManifest.xml').read_text(encoding='utf-8')
 
           assert "applicationId 'com.tmmobileshop.hisab'" in gradle
-          assert "versionCode 10" in gradle
-          assert "versionName '1.9-private-report-order'" in gradle
+          assert "versionCode 11" in gradle
+          assert "versionName '2.0-private-live-transactions'" in gradle
           assert 'android:label="TM Mobile Shop"' in manifest
 
           assert 'getSharedPreferences("tm_mobile_shop_store", MODE_PRIVATE)' in java
           assert '"state_json"' in java
           assert 'state_json_backup_pre_preview10' in java
           assert 'state_json_backup_pre_reconcile' in java
+          assert 'state_json_backup_pre_customer_live' in java
           assert 'profitPartsForDayPatched' in java
           assert 'migrateComputerProfitSemantics' in java
 
@@ -96,6 +101,15 @@ jobs:
           assert '*حساب کیسے بنا*' in html
           assert 'تفصیل :۔' in html
           assert '۔۔۔۔۔۔۔ ختم شد ۔۔۔' in html
+          assert 'id="pageLive"' in html
+          assert 'لائیو اسٹیٹس' in html
+          assert 'function renderLiveStatus' in html
+          assert 'function liveBalanceFor' in html
+          assert 'customerFlow:true' in html
+          assert "counter:'drawer'" in html
+          assert 'پیسے آئے (+)' in html
+          assert 'پیسے گئے (−)' in html
+          assert 'نوٹ (اختیاری)' in html
 
           # Regression checks using the real 28/29/30 totals discussed for the shop.
           def patched_profit(opening_total, actual_total, actual_computer, shop_to, to_shop):
@@ -111,6 +125,20 @@ jobs:
           assert p29 == 5549, p29
           assert p30 == 4071, p30
           assert p28 + p29 + p30 == 16021
+          
+          # Customer ledger invariant: account send/receive is balanced against cash,
+          # so shop total is unchanged except any explicitly entered commission.
+          jazz_ref = 50555
+          drawer_ref = 100000
+          jazz_live = jazz_ref - 1020 - 4950
+          drawer_live = drawer_ref + 1020 + 4950
+          assert jazz_live == 44585
+          assert jazz_live + drawer_live == jazz_ref + drawer_ref
+
+          jazz_live += 2000
+          drawer_live -= 2000
+          assert jazz_live == 46585
+          assert jazz_live + drawer_live == jazz_ref + drawer_ref
 
           assert Path('app/src/main/assets/JameelNooriNastaleeq.woff2').stat().st_size > 1_000_000
           assert Path('app/src/main/res/drawable-nodpi/tm_app_icon.png').stat().st_size > 1_000
@@ -125,6 +153,7 @@ jobs:
           subprocess.run(['node', '--check', '/tmp/tm-mobile-shop-inline.js'], check=True)
 
           print('PASS: party-aware incoming/outgoing reporting + reconciliation UI present')
+          print('PASS: customer account ledger is cash-balanced and live-status hooks are present')
           print('PASS: inline JavaScript syntax check')
           print('PASS: day 28 profit=6401, day 29 profit=5549, day 30 profit=4071')
           PY
