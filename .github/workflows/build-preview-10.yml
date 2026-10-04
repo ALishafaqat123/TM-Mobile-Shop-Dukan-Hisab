@@ -1,6 +1,10 @@
 name: Build TM Mobile Shop Preview 10 Private APK
 
 on:
+  push:
+    branches: [ android-preview-10-share-reports ]
+    paths:
+      - 'app/**'
   workflow_dispatch:
 
 permissions:
@@ -45,8 +49,8 @@ jobs:
 
       - name: Set private test APK version
         run: |
-          sed -i "s/versionCode 8/versionCode 11/" app/build.gradle
-          sed -i "s/versionName '1.7-preview-10-share-reports'/versionName '2.0-private-live-transactions'/" app/build.gradle
+          sed -i "s/versionCode 8/versionCode 12/" app/build.gradle
+          sed -i "s/versionName '1.7-preview-10-share-reports'/versionName '2.1-private-optional-history'/" app/build.gradle
 
       - name: Verify accounting, sharing, and data safety
         run: |
@@ -59,8 +63,8 @@ jobs:
           manifest = Path('app/src/main/AndroidManifest.xml').read_text(encoding='utf-8')
 
           assert "applicationId 'com.tmmobileshop.hisab'" in gradle
-          assert "versionCode 11" in gradle
-          assert "versionName '2.0-private-live-transactions'" in gradle
+          assert "versionCode 12" in gradle
+          assert "versionName '2.1-private-optional-history'" in gradle
           assert 'android:label="TM Mobile Shop"' in manifest
 
           assert 'getSharedPreferences("tm_mobile_shop_store", MODE_PRIVATE)' in java
@@ -106,6 +110,12 @@ jobs:
           assert 'پیسے آئے (+)' in html
           assert 'پیسے گئے (−)' in html
           assert 'نوٹ (اختیاری)' in html
+          assert 'id="dayShareIncludeCustomerHistory"' in html
+          assert 'id="rangeShareIncludeCustomerHistory"' in html
+          assert 'function customerTransactionHistoryText' in html
+          assert 'includeCustomerHistory=false' in html
+          assert '*3) اکاؤنٹس کی ٹرانزیکشن ہسٹری*' in html
+          assert 'if(includeCustomerHistory)s+=customerTransactionHistoryText(d)' in html
 
           # Regression checks using the real 28/29/30 totals discussed for the shop.
           def patched_profit(opening_total, actual_total, actual_computer, shop_to, to_shop):
